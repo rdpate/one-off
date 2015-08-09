@@ -1,0 +1,120 @@
+#!/usr/bin/env bash
+set -ue
+
+fatal() {
+    echo "relpath: error: $2" >&2
+    exit $1
+}
+
+handle_option() {
+    case "$1" in
+        help)
+            cat <<'EOF'
+relpath PATH [BASE]
+
+Print relative path to PATH from BASE or $PWD.  The filesystem is not
+accessed and all manipulation is on strings.  If PATH is given with
+a trailing slash, then output will also have one.
+
+Exits non-zero if BASE has ".." components.  Consider 'readlink -f' or
+other path manipuation on BASE if handling that is desired.
+
+TODO: some edge cases have less than desired output, e.g. "/.", "/./".
+EOF
+            exit 0;;
+        *)
+            fatal 1 "unknown option: $1";;
+    esac
+}
+while (($#)); do
+    case "$1" in
+        --)
+            shift
+            break;;
+        --*=*)
+            x="${1#--}"
+            handle_option "${x%%=*}" "${1#*=}"
+            shift;;
+        --*)
+            handle_option "${1#--}"
+            shift;;
+        -?*)
+            if [ ${#1} = 2 ]; then
+                handle_option "${1:1:1}"
+            else
+                handle_option "${1:1:1}" "${1#??}"
+            fi
+            shift;;
+        *)
+            break;;
+    esac
+done
+
+case $# in
+    0)
+        fatal 1 'missing argument';;
+    1)
+        set -- "$1" "$PWD";;
+    2)
+        ;;
+    *)
+        fatal 1 'unexpected arguments';;
+esac
+if [ -z "$1" ] || [ -z "$2" ]; then
+    fatal 1 'empty argument'
+fi
+if [ / != "${2::1}" ]; then
+    fatal 1 'BASE must start with /'
+fi
+if [ / = "${1: -1}" ] && [ / != "$1" ]; then
+    end_slash=/
+else
+    end_slash=
+fi
+clean_path() {
+    printf %s "$1" | sed -E '
+        s,^./+,,
+        s,//+,/,g
+        s,/(\.(/|$))+,/,g
+        s,(.)/+$,\1,
+    '
+}
+target="$(clean_path "$1")"
+base="$(clean_path "$2")"
+if printf %s "$base" | grep -E -q '/\.\.(/|$)'; then
+    fatal 1 'BASE cannot have ".." components'
+fi
+if [ / != "${target::1}" ]; then
+    result="$target"
+elif [ "$target" = "$base" ]; then
+    result=.
+elif [ "/${base:1:${#target}}" = "$target"/ ]; then
+    prefix=
+    while true; do
+        base="$(dirname "$base")"
+        prefix="../$prefix"
+        if [ "$base" = "$target" ]; then
+            result="${prefix%/}"
+            break
+        fi
+    done
+else
+    prefix=
+    while true; do
+        if [ / = "$base" ]; then
+            result="$prefix${target:1}"
+            break
+        fi
+        base="$base"/
+        if [ "${target::${#base}}" = "$base" ]; then
+            result="$prefix${target:${#base}}"
+            break
+        fi
+        base="$(dirname "$base")"
+        prefix="../$prefix"
+    done
+fi
+if [ x"${result::1}" = x- ]; then
+    result="./$result"
+fi
+printf %s\\n "$result$end_slash"
