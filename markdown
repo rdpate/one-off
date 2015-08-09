@@ -1,15 +1,13 @@
 #!/usr/bin/env bash
-# TODO: write or modify punctuation extension; "abc -- def" should become "abc&mdash;def"
+# TODO: write or modify punctuation extension; "abc -- def" should become "abc&mdash;def", at least for me
 #   may need to re-write a markdown parser
 
 set -ue
 fatal() {
-    echo "$(basename "$0"): error: $2" >&2
+    echo "markdown: error: $2" >&2
     exit $1
 }
-title=
 safe=
-fragment=false
 markdown_opts=()
 handle_option() {
     case "$1" in
@@ -17,25 +15,23 @@ handle_option() {
             cat <<'EOF'
 markdown [OPTIONS] [FILE..]
 
+Convert markdown from FILEs (or stdin) to html5.
+
 Options:
- -t --title=TITLE   add title
-    --safe=MODE     "replace", "remove", "escape" HTML tags in input;
-                    defaults to "unsafe"
+    --html=MODE     "raw" (default), "remove", or "escape" HTML tags
     --quiet         suppress all warnings
     --verbose       print all warnings
 EOF
             exit 0;;
-        t|title)
-            [ $# = 2 ] || fatal 1 "missing value for $1 option"
-            title="$2";;
         safe)
+            [ $# = 2 ] || fatal 1 'missing value for safe option'
             case "$2" in
-                replace|remove|escape)
-                    safe="$2";;
-                unsafe)
+                raw)
                     safe=;;
+                remove|escape)
+                    safe="$2";;
                 *)
-                    fatal 1 'unknown value for safe option';;
+                    fatal 1 'unexpected value for safe option';;
             esac;;
         quiet|verbose)
             [ $# = 2 ] && fatal 1 "unexpected value for $1 option"
