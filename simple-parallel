@@ -1,0 +1,87 @@
+#!/bin/sh -ue
+# simple-parallel [options] [command [arg..]]
+# simple-parallel [-jN] [-nN] [-0] [command [arg..]]
+#
+# For each line from stdin, run command with that line as an additional argument.  Multiple commands are run simultaneously.  Stdin is redirected from /dev/null for commands.
+#
+# Options:
+#   -0              use null instead of newline to delimit input
+#   -jN             run N jobs simultaneously
+#   -nN             use up to N lines instead of 1 as additional arguments;
+#                   exit with error if N lines exceeds size limits
+
+# TODO: better default jobs value
+# TODO: freebsd doesn't guarantee that stdin is redirected from /dev/null, gnu does; could either replace use of xargs (which also allows fixing that "-n" is "up to" rather than "exactly") or keep current use of sh wrap
+# TODO: is it worthwhile to add a command to provide the arguments as stdin (and thus preserve nulls)?  this ties in with replacing use of xargs
+
+fatal() {
+    echo "simple-parallel: error: $2" >&2
+    exit $1
+}
+
+numargs=1
+jobs=4
+null_delimit=false
+handle_option() {
+    case "$1" in
+        0)
+            [ $# = 1 ] || fatal 1 'unexpected value for -0'
+            null_delimit=true;;
+        n)
+            [ $# = 2 ] || fatal 1 'missing -n value'
+            [ 1 -le "$2" ] 2>/dev/null || fatal 1 'invalid -n value'
+            numargs="$2";;
+        j)
+            [ $# = 2 ] || fatal 1 'missing -j value'
+            [ 1 -le "$2" ] 2>/dev/null || fatal 1 'invalid -j value'
+            jobs="$2";;
+        *)
+            fatal 1 "unknown option: $1";;
+    esac
+}
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --)
+            shift
+            break;;
+        --*=*)
+            x="${1#--}"
+            handle_option "${x%%=*}" "${x#*=}"
+            shift;;
+        --*)
+            handle_option "${1#--}"
+            shift;;
+        -?*)
+            if [ ${#1} = 2 ]; then
+                handle_option "${1#-}"
+            else
+                v="${1#??}"
+                x="${1%"$v"}"
+                handle_option "${x#-}" "$v"
+            fi
+            shift;;
+        *)
+            break;;
+    esac
+done
+
+case $# in
+    0)
+        set -- echo;;
+    *)
+        set -- sh -c 'exec "$@" </dev/null' sh "$@";;
+esac
+
+# Until the control socket is added, emulate with xargs.  The below commands should be identical on both gnu and freebsd xargs.
+# TODO: exit status isn't identical
+if $null_delimit; then
+    exec xargs -0 -r -x -n "$numargs" -P "$jobs" -- "$@"
+else
+    # This preserves nulls in input lines (gnu xargs reports an error, freebsd xargs does not):
+    #   sed -E 's/'\''/\\&/g; s/^|$/'\''/g;' |
+    #   xargs -r -x -n "$numargs" -P "$jobs" -- "$@"
+    # But since they cannot be preserved in arguments, using tr should be acceptable.  Note that xargs -0 is non-posix, but does significantly change how xargs parses input.
+    tr \\n \\0 |
+    xargs -0 -r -x -n "$numargs" -P "$jobs" -- "$@"
+fi
