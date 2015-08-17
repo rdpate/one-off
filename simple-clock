@@ -1,0 +1,15 @@
+#!/bin/sh -ue
+command='
+(
+    date +%I:%M\ %P | sed -E s/^0//
+    echo -n "L:    "
+    date +%H:%M
+    echo -n "Z:    "
+    date -u +%H:%M
+) | figlet -ck
+'
+clear
+sh -c "$command"
+sleep "$(date +60-%S | bc)"
+clear
+exec watch --no-title --precise -n 60 "$command"
