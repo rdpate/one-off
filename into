@@ -1,0 +1,46 @@
+#!/bin/sh -ue
+# into DEST COMMAND..
+#
+# Rearrange args and execute COMMAND.. DEST.  Useful for tools which append args to generate a command, eg. "find ... -exec into DEST mv".
+
+fatal() {
+    printf '%s: error: %s\n' "$(basename "$0")" "$2" >&2
+    exit "$1"
+}
+
+handle_option() {
+    fatal 1 "unknown option: $1"
+}
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --)
+            shift
+            break;;
+        --*=*)
+            x="${1#--}"
+            handle_option "${x%%=*}" "${x#*=}"
+            shift;;
+        --*)
+            handle_option "${1#--}"
+            shift;;
+        -?*)
+            if [ ${#1} = 2 ]; then
+                handle_option "${1#-}"
+            else
+                v="${1#??}"
+                x="${1%"$v"}"
+                handle_option "${x#-}" "$v"
+            fi
+            shift;;
+        *)
+            break;;
+    esac
+done
+
+case $# in
+    0|1) fatal 1 'missing arguments';;
+esac
+dest="$1"
+shift
+exec "$@" "$dest"
