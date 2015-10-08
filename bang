@@ -1,0 +1,115 @@
+#!/usr/bin/env python3
+# bang SCRIPT [ARG..]
+#
+# Extend "#!" with "#:".
+
+
+import os
+import shlex
+import sys
+from pathlib import Path
+
+
+if os.altsep is None:
+    def _contains_sep(s):
+        return os.sep in s
+else:
+    def _contains_sep(s):
+        return os.sep in s or os.altsep in s
+
+def resolve_path_lookup(name, dirs=None):
+    if _contains_sep(name):
+        return Path(name)
+    name = Path(name)
+    if dirs is None:
+        dirs = os.environ.get("PATH")
+        if not dirs:
+            raise RuntimeError("PATH not set")
+        dirs = dirs.split(os.pathsep)
+    elif isinstance(dirs, str):
+        dirs = dirs.split(os.pathsep)
+    for d in dirs:
+        path = Path(d) / name
+        if path.exists():
+            return path
+    return None
+
+def read_prelude(path, skip_shebang=False):
+    with path.open("rb") as f:
+        x = f.read(2)
+        if skip_shebang and x == b"#!":
+            f.readline()
+            x = f.read(2)
+        if x != b"#:":
+            return None
+        if f.read(1) != b" ":
+            raise RuntimeError("unrecognized prelude: {}: missing space after #:".format(path))
+        line = f.readline()
+    try:
+        line = line.decode()
+    except UnicodeDecodeError:
+        raise RuntimeError("invalid prelude: {}: unable to decode as UTF-8".format(path))
+    try:
+        line = shlex.split(line.rstrip(" \r\n"))
+    except ValueError as e:
+        raise RuntimeError("invalid prelude: {}: {}".format(path, e))
+    if not line or not line[0]:
+        raise RuntimeError("empty prelude command: {}".format(path))
+    return line
+
+def run_file(args):
+    path = Path(args[0])
+    if args[0].startswith("-"):
+        args[0] = "./" + args[0]
+    try:
+        args[:0] = read_prelude(path, skip_shebang=True)
+        command = resolve_path_lookup(args[0])
+        if not command:
+            return "PATH lookup failed: " + args[0]
+        args[0] = str(path.parent / command)
+    except (IOError, RuntimeError) as e:
+        return e
+    print(args)
+    try:
+        os.execv(args[0], args)
+    except OSError as e:
+        return "execv({!r}): {}".format(args[0], e)
+
+def parse_opts(args):
+    for n, x in enumerate(args):
+        if x == "--":
+            del args[:n + 1]
+            break
+        elif x.startswith("-") and len(x) != 1:
+            if x.startswith("--"):
+                name, sep, value = x[2:].partition("=")
+                if not sep:
+                    value = None
+            else:
+                name, value = x[1], x[2:] or None
+            yield name, value
+        else:
+            del args[:n]
+            break
+    else:
+        del args[:]
+
+def main(args):
+    for name, value in parse_opts(args):
+        rc = "unknown option: " + name
+        break
+    else:
+        if not args:
+            rc = "missing argument"
+        else:
+            rc = run_file(args)
+    if rc is not None and not isinstance(rc, int):
+        str_rc = str(rc)
+        if not str_rc:
+            str_rc = repr(rc)
+        sys.stderr.write("{}: error: {}\n".format(os.path.basename(sys.argv[0]), str_rc))
+        rc = 1
+    return rc
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
