@@ -1,7 +1,5 @@
 #!/bin/sh -ue
 # display a calender, sleep until tomorrow (local), and start again
-trap 'tput ve' exit
-tput vi
 while :; do
     cal "$@"
     # requires freebsd date for -v
