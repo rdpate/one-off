@@ -1,0 +1,10 @@
+#!/bin/sh -ue
+# display a calender, sleep until tomorrow (local), and start again
+trap 'tput ve' exit
+tput vi
+while :; do
+    cal "$@"
+    # requires freebsd date for -v
+    sleep $(($(date -v+1d -v0H -v0M -v0S +%s) - $(date +%s)))
+    sleep 1
+done
