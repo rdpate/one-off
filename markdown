@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh -ue
 # markdown [OPTIONS] [FILE..]
 #
 # Convert markdown from FILEs (or stdin) to html5.
@@ -14,7 +14,6 @@
 #   may need to re-write a markdown parser
 # TODO: maybe add option for extensions (markdown module's -x option)
 
-set -ue
 fatal() {
     echo "markdown: error: $2" >&2
     exit $1
@@ -23,30 +22,30 @@ fatal() {
 doctype=false
 title=
 html=
-markdown_opts=()
+noise=
 handle_option() {
     case "$1" in
         doctype)
-            [ $# = 1 ] || fatal 1 'unexpected --doctype value'
+            [ $# = 1 ] || fatal 64 'unexpected --doctype value'
             doctype=true;;
         title)
-            [ $# = 2 ] || fatal 1 'missing --title value'
+            [ $# = 2 ] || fatal 64 'missing --title value'
             title="$2";;
         html)
-            [ $# = 2 ] || fatal 1 'missing --html value'
+            [ $# = 2 ] || fatal 64 'missing --html value'
             case "$2" in
                 raw)
                     html=;;
                 remove|escape)
                     html="$2";;
                 *)
-                    fatal 1 'unknown --html value';;
+                    fatal 64 'unknown --html value';;
             esac;;
         quiet|verbose)
-            [ $# = 2 ] && fatal 1 "unexpected --$1 value"
-            markdown_opts+=("--$1");;
+            [ $# = 2 ] && fatal 64 "unexpected --$1 value"
+            noise="--$1";;
         *)
-            fatal 1 "unknown option: $1";;
+            fatal 64 "unknown option: $1";;
     esac
 }
 while [ $# -gt 0 ]; do
@@ -73,29 +72,24 @@ while [ $# -gt 0 ]; do
     esac
 done
 
-if [ -n "$html" ]; then
-    markdown_opts+=(--safe="$html")
-fi
-markdown_opts+=(
-    -eutf-8
-    -ohtml5
-    -xmarkdown.extensions.{smarty,tables}
-    --no_lazy_ol
-    )
 if $doctype; then
     printf %s\\n '<!doctype html>'
 fi
 if [ -n "$title" ]; then
-    printf %s '<title>'
-    printf %s "$title" | sed 's/&/\&amp;/g; s/</\&lt;/g'
-    printf %s\\n '</title>'
+    printf %s%s%s\\n '<title>' "$(printf %s "$title" | sed 's/&/\&amp;/g; s/</\&lt;/g')" '</title>'
 fi
 for x; do
     if ! [ -e "$x" ]; then
-        fatal 1 "no such file: $x"
+        fatal 66 "no such file: $x"
     elif [ -d "$x" ]; then
-        fatal 1 "unexpected directory: $x"
+        fatal 66 "unexpected directory: $x"
     fi
 done
-cat -- "$@" | python3 -mmarkdown "${markdown_opts[@]}"
+cat -- "$@" | python3 -mmarkdown \
+    $noise \
+    ${html:+"--safe=$html"} \
+    -eutf-8 -ohtml5 \
+    -xmarkdown.extensions.smarty \
+    -xmarkdown.extensions.tables \
+    --no_lazy_ol
 echo
