@@ -1,8 +1,12 @@
 #!/bin/sh -ue
-# display a calender, sleep until tomorrow (local), and start again
+# display a calender, sleep until tomorrow, and start again
+[ $# = 0 ] && set -- -3
 while :; do
+    clear
     cal "$@"
     # requires freebsd date for -v
+    trap 'printf \\r; exit 0' INT
     sleep $(($(date -v+1d -v0H -v0M -v0S +%s) - $(date +%s)))
     sleep 1
+    trap - INT
 done
