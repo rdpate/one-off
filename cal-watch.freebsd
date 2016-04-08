@@ -4,7 +4,6 @@
 while :; do
     clear
     cal "$@"
-    # requires freebsd date for -v
     trap 'printf \\r; exit 0' INT
     sleep $(($(date -v+1d -v0H -v0M -v0S +%s) - $(date +%s)))
     sleep 1

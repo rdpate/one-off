@@ -1,0 +1,11 @@
+#!/bin/sh -ue
+# display a calender, sleep until tomorrow, and start again
+[ $# = 0 ] && set -- -3
+while :; do
+    clear
+    cal "$@"
+    trap 'printf \\r; exit 0' INT
+    sleep $(($(date -d'tomorrow 00:00' +%s) - $(date +%s)))
+    sleep 1
+    trap - INT
+done
