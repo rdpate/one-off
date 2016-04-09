@@ -1,0 +1,51 @@
+#!/bin/sh -ue
+# urxvt-resize COLUMNS ROWS
+#
+# See man 7 urxvt.  May work with other terminals.
+
+fatal() {
+    printf '%s: error: %s\n' "$(basename "$0")" "$2" >&2
+    exit "$1"
+}
+
+handle_option() {
+    fatal 64 "unknown option: $1"
+}
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --)
+            shift
+            break;;
+        --*=*)
+            x="${1#--}"
+            handle_option "${x%%=*}" "${x#*=}"
+            shift;;
+        --*)
+            handle_option "${1#--}"
+            shift;;
+        -?*)
+            if [ ${#1} = 2 ]; then
+                handle_option "${1#-}"
+            else
+                v="${1#??}"
+                x="${1%"$v"}"
+                handle_option "${x#-}" "$v"
+            fi
+            shift;;
+        *)
+            break;;
+    esac
+done
+
+if [ $# = 0 ]; then
+    set -- 80 37
+elif [ $# = 1 ]; then
+    set -- "$1" "$(tput lines)"
+elif [ $# != 2 ]; then
+    echo 'usage: urxvt-resize COLUMNS LINES' >&2
+    exit 64
+fi
+x="$(printf '\033[8;%d;%dt' "$2" "$1" 2>/dev/null)" \
+    || fatal 64 'expected integer COLUMNS and LINES'
+printf %s "$x"
