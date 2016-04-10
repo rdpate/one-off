@@ -1,0 +1,35 @@
+#!/usr/bin/env python3.4
+# list-hidden-commands [PATH]
+#
+# List commands that hide other commands in PATH as "command: hidden [hidden]..".  Use PATH from environment if not specified.
+
+import os
+import sys
+from pathlib import Path
+
+def main(args):
+    if not args:
+        args = [os.environ["PATH"]]
+    elif len(args) != 1:
+        return "unexpected arguments"
+    PATH = list(map(Path, args[0].split(os.pathsep)))
+    commands = set()
+    for n, top in enumerate(PATH[:-1]):
+        for top_name in sorted(top.iterdir()):
+            if not top_name.is_file():
+                continue
+            if top_name.name in commands:
+                continue
+            commands.add(top_name.name)
+            hidden = []
+            for sub in PATH[n + 1:]:
+                if sub == top:
+                    continue
+                sub_name = sub / top_name.name
+                if sub_name.is_file() and sub_name not in hidden:
+                    hidden.append(sub_name)
+            if hidden:
+                print("{}: {}".format(top_name, " ".join(map(str, hidden))))
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
