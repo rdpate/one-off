@@ -1,26 +1,61 @@
 #!/usr/bin/env python3.4
-# list-hidden-commands [PATH]
+# list-hidden-commands [--path=PATH] [COMMAND]..
 #
-# List commands that hide other commands in PATH as "command: hidden [hidden]..".  Use PATH from environment if not specified.
+# List commands that hide other commands in PATH.
+#
+# Output format:
+#   /path/to/command: /hidden/command /other/hidden/command
 
 import os
 import sys
 from pathlib import Path
 
+def parse_opts(args):
+    """yield (name, value) options, then modify args in-place"""
+    for n, x in enumerate(args):
+        if x == "--":
+            del args[:n + 1]
+            break
+        elif x.startswith("-") and len(x) != 1:
+            if x.startswith("--"):
+                name, sep, value = x[2:].partition("=")
+                if not sep:
+                    value = None
+            else:
+                name, value = x[1], x[2:] or None
+            yield name, value
+        else:
+            del args[:n]
+            break
+    else:
+        del args[:]
+
 def main(args):
+    PATH = os.environ["PATH"]
+    for opt_name, opt_value in parse_opts(args):
+        if opt_name == "path":
+            if opt_value is None:
+                return "--path value expected"
+            PATH = opt_value
+        else:
+            return "unknown option: " + opt_name
+    PATH = list(map(Path, PATH.split(os.pathsep)))
+
     if not args:
-        args = [os.environ["PATH"]]
-    elif len(args) != 1:
-        return "unexpected arguments"
-    PATH = list(map(Path, args[0].split(os.pathsep)))
-    commands = set()
+        def match(x):
+            return True
+    else:
+        def match(x):
+            return x in args
+
+    seen = set()
     for n, top in enumerate(PATH[:-1]):
         for top_name in sorted(top.iterdir()):
-            if not top_name.is_file():
+            if not top_name.is_file() or not match(top_name.name):
                 continue
-            if top_name.name in commands:
+            if top_name.name in seen:
                 continue
-            commands.add(top_name.name)
+            seen.add(top_name.name)
             hidden = []
             for sub in PATH[n + 1:]:
                 if sub == top:
