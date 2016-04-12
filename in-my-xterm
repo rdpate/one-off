@@ -1,0 +1,8 @@
+# source this file
+if [ -z "${TERM:-}" ]; then
+    if [ -n "${DISPLAY:-}" ]; then
+        exec my-xterm -e "$0" "$@"
+    fi
+    printf '%s: %s\n' "$(basename "$0")" 'neither TERM nor DISPLAY set' >&2
+    exit 64
+fi
