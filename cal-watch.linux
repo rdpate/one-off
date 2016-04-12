@@ -1,11 +1,17 @@
 #!/bin/sh -ue
 # display a calender, sleep until tomorrow, and start again
 [ $# = 0 ] && set -- -3
-while :; do
+trapped=
+trap trapped=x INT
+while [ -z "$trapped" ]; do
     clear
     cal "$@"
-    trap 'printf \\r; exit 0' INT
-    sleep $(($(date -d'tomorrow 00:00' +%s) - $(date +%s)))
+    sleep $(($(date -d'tomorrow 00:00' +%s) - $(date +%s))) || {
+        rc=$?
+        case $rc in
+            130) printf \\r; exit ;;
+            *) exit $rc ;;
+        esac
+    }
     sleep 1
-    trap - INT
 done
