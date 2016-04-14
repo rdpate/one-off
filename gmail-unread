@@ -1,0 +1,59 @@
+#!/bin/sh -ue
+# gmail-unread [--label=LABEL]
+#
+# Show unread mail from gmail.  Separate nested labels with dashes: "parent-nested".
+
+fatal() {
+    printf %s\\n "$(basename "$0"): $2" >&2
+    exit "$1"
+}
+
+base_url=https://mail.google.com/mail/feed/atom
+url="$base_url"
+handle_option() {
+    case "$1" in
+        label) [ $# = 2 ] || fatal 64 'missing LABEL'
+            url="$base_url/$2" ;;
+        *) fatal 64 "unknown option: $1" ;;
+    esac
+}
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --)
+            shift
+            break;;
+        --*=*)
+            x="${1#--}"
+            handle_option "${x%%=*}" "${x#*=}"
+            shift;;
+        --*)
+            handle_option "${1#--}"
+            shift;;
+        -?*)
+            if [ ${#1} = 2 ]; then
+                handle_option "${1#-}"
+            else
+                v="${1#??}"
+                x="${1%"$v"}"
+                handle_option "${x#-}" "$v"
+            fi
+            shift;;
+        *)
+            break;;
+    esac
+done
+
+if [ $# != 0 ]; then
+    fatal 64 'unexpected arguments'
+fi
+
+# http://www.commandlinefu.com/commands/view/3380/check-your-unread-gmail-from-the-command-line
+# TODO: change from .netrc probably to oauth, which shouldn't require "less secure apps" setting in Google
+# TODO: real xml parsing
+# TODO: cache output
+curl --silent --netrc "$url" \
+| tr -d \\n \
+| awk -F '<entry>' '{ for (i = 2; i <= NF; ++i) print $i }' \
+| sed -n 's/<title>\(.*\)<\/title.*name>\(.*\)<\/name.*/\2\t\1/p' \
+| column -t -s "$(printf \\t)"
