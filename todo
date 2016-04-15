@@ -1,0 +1,42 @@
+#!/bin/sh -ue
+
+# Not sure I want this route over simple text files, but it's intriguing.
+# original: http://tools.suckless.org/dmenu/scripts/todo
+#
+# Customize:
+file=~/todo
+menu() dmenu -p Task -l "$height"
+
+
+if [ $# != 0 ]; then
+    exit 64
+fi
+
+match() {
+    grep -F -x "$@" "$file"
+}
+if [ -e "$file" ]; then
+    height="$(wc -l <"$file")"
+else
+    height=0
+fi
+while :; do
+    task="$( ([ -e "$file" ] && cat "$file") | menu)"
+    if [ -z "$task" ]; then
+        break
+    elif [ "$(printf %s\\n "$task" | wc -l)" != 1 ]; then
+        exit 70
+    fi
+    if [ -e "$file" ] && match -q "$task"; then
+        height=$(($height - 1))
+        if [ $height = 0 ]; then
+            rm "$file"
+        else
+            match -v "$task" >"$file.new"
+            mv "$file.new" "$file"
+        fi
+    else
+        height=$(($height + 1))
+        printf %s\\n "$task" >>"$file"
+    fi
+done
