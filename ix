@@ -1,0 +1,76 @@
+#!/bin/sh -ue
+# ix [options] [FILE]
+#
+# Paste file or stdin to http://ix.io/.
+#
+# Put username/password into ~/.netrc, if desired.  View your pastes at http://ix.io/user/USER.
+#
+# Options:
+#  -n --read=NUM                  paste will be deleted after NUM reads
+#  -i --id=ID                     replace ID, if you have permission
+#
+# Examples:
+#   ix hello.txt                  # paste file (name/ext will be set)
+#   echo Hello world. | ix        # read from STDIN (won't set name/ext)
+#   ix -n1 self-destruct.txt      # paste will be deleted after one read
+#   ix -iID hello.txt             # replace ID, if you have permission
+
+fatal() {
+    printf %s\\n "$(basename "$0"): $2" >&2
+    exit "$1"
+}
+
+num=
+id=
+handle_option() {
+    case "$1" in
+        n|read) [ $# = 2 ] || fatal 64 '--read missing NUM'
+            num="$2" ;;
+        i|id) [ $# = 2 ] || fatal 64 '--id missing ID'
+            id="$2" ;;
+        *) fatal 64 "unknown option: $1" ;;
+    esac
+}
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --)
+            shift
+            break;;
+        --*=*)
+            x="${1#--}"
+            handle_option "${x%%=*}" "${x#*=}"
+            shift;;
+        --*)
+            handle_option "${1#--}"
+            shift;;
+        -?*)
+            if [ ${#1} = 2 ]; then
+                handle_option "${1#-}"
+            else
+                v="${1#??}"
+                x="${1%"$v"}"
+                handle_option "${x#-}" "$v"
+            fi
+            shift;;
+        *)
+            break;;
+    esac
+done
+
+case $# in
+    0) filename='<-' ;;
+    1)
+        if [ x- = x"$1" ]; then
+            filename='<-'
+        else
+            filename="@$1"
+        fi
+        ;;
+    *) fatal 1 'bad arguments' ;;
+esac
+curl=curl
+if [ -f ~/.netrc ]; then
+    curl='curl -n'
+fi
+exec $curl ${id:+-X PUT} ${num:+-F read:1="$num"} -F f:1="$filename" http://ix.io/"$id"
