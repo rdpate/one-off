@@ -1,0 +1,8 @@
+#!/bin/sh -ue
+# https://bitbucket.org/rdpate/notify-releases-github
+case "$1 $2" in
+    vim/vim tag/v7.4.*) exit 0 ;;
+esac
+mail -s "$1: $2" "$USER" <<END
+https://github.com/$1/releases/$2
+END
