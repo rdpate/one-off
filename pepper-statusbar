@@ -1,0 +1,75 @@
+#!/usr/bin/python3.5
+import json
+import os
+import pathlib
+import sys
+
+class PathNonEmpty:
+    def __init__(self, path, text, color):
+        self.path = path
+        self.text = text
+        self.color = color
+
+    def __call__(self):
+        try:
+            st = self.path.stat()
+        except FileNotFoundError:
+            return None
+        if st.st_size == 0:
+            return None
+        return {
+            "color": self.color,
+            "full_text": self.text,
+            #"markup": "pango",
+            }
+
+def BLOCKS():
+    home = pathlib.Path.home()
+    paths = [
+        (home / "todo", "todo", "#00BFFF"),
+        (home / ".config/vimb/queue", "vimb", "#00BFFF"),
+        (home / ".gmail-unread", "mail", "#30A030"),
+        ]
+    return [PathNonEmpty(*x) for x in paths]
+BLOCKS = BLOCKS()
+
+def json_dump(value):
+    return json.dumps(value, separators=(",", ":"))
+
+def main():
+    while True:
+        line = sys.stdin.readline()
+        sys.stdout.write(line)
+        if line == "[\n":
+            break
+
+    def text():
+        blocks = []
+        for x in BLOCKS:
+            try:
+                t = x()
+            except Exception as e:
+                t = "{}: {}".format(type(e).__name__, e)
+            blocks.append(t)
+        text = "".join(json_dump(x) + "," for x in blocks if x)
+        return text
+
+    while True:
+        line = sys.stdin.readline()
+        assert line != "[]\n"
+        if line.startswith("["):
+            sys.stdout.write("[")
+            line = line[1:]
+        else:
+            assert line.startswith(",["), line[:5]
+            sys.stdout.write(",[")
+            line = line[2:]
+        sys.stdout.write(text())
+        sys.stdout.write(line)
+        sys.stdout.flush()
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (KeyboardInterrupt, BrokenPipeError):
+        sys.exit(1)

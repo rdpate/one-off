@@ -6,9 +6,5 @@ file="$HOME/.gmail-unread"
 temp="${TMPDIR:-/tmp}/check-gmail.$$"
 trap 'rm "$temp"' EXIT
 "$(dirname "$0")/gmail-unread" >"$temp"
-if [ -s "$temp" ]; then
-    mv "$temp" "$file"
-    trap - EXIT
-else
-    rm -f "$file"
-fi
+mv "$temp" "$file"
+trap - EXIT

@@ -29,12 +29,8 @@ while :; do
     fi
     if [ -e "$file" ] && match -q "$task"; then
         height=$(($height - 1))
-        if [ $height = 0 ]; then
-            rm "$file"
-        else
-            match -v "$task" >"$file.new"
-            mv "$file.new" "$file"
-        fi
+        match -v "$task" >"$file.new" || true
+        mv "$file.new" "$file"
     else
         height=$(($height + 1))
         printf %s\\n "$task" >>"$file"
