@@ -29,6 +29,7 @@ def BLOCKS():
         (home / "todo", "todo", "#00BFFF"),
         (home / ".config/vimb/queue", "vimb", "#00BFFF"),
         (home / ".gmail-unread", "mail", "#30A030"),
+        (pathlib.Path("/var/mail/roger"), "pepper-mail", "#30A030"),
         ]
     return [PathNonEmpty(*x) for x in paths]
 BLOCKS = BLOCKS()
