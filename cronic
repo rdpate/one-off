@@ -1,0 +1,25 @@
+#!/bin/sh -ue
+# based on Cronic v2 by Chuck Houpt <http://habilis.net/cronic/>
+
+out=/tmp/cronic.out.$$
+err=/tmp/cronic.err.$$
+
+result=0
+"$@" >"$out" 2>"$err" || result=$?
+
+if [ $result -ne 0 -o -s "$err" ]; then
+    cat - "$err" <<EOF
+Cronic detected failure or error output for command:
+$*
+
+Exit status: $result
+
+Error output:
+EOF
+    cat - "$out" <<EOF
+
+Standard output:
+EOF
+fi
+
+rm -f "$out" "$err"
