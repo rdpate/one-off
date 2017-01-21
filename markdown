@@ -1,4 +1,5 @@
 #!/bin/sh -ue
+#.help
 # markdown [OPTIONS] [FILE..]
 #
 # Convert markdown from FILEs (or stdin) to html5.
