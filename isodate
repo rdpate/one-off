@@ -1,0 +1,60 @@
+#!/bin/sh -ue
+#.help
+# isodate [--utc] [ARG..]
+#
+# Output date in an ISO 8601 format.  Defaults to local timezone.  Arguments are passed to date(1), eg. to change the reference point from "current time".
+#
+# Options:
+# -u  --utc         UTC time
+#     --local       local time
+
+fatal() {
+    printf %s\\n "$(basename "$0") error: $2" >&2
+    exit "$1"
+}
+
+date=date
+handle_option() {
+    case "$1" in
+        # handle known options
+        u|utc)
+            [ $# = 1 ] || fatal 64 'unexpected value for --utc'
+            date='date -u'
+            ;;
+        local)
+            [ $# = 1 ] || fatal 64 'unexpected value for --local'
+            date=date
+            ;;
+        *)
+            fatal 64 "unknown option: $1"
+            ;;
+    esac
+}
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --)
+            shift
+            break;;
+        --*=*)
+            x="${1#--}"
+            handle_option "${x%%=*}" "${x#*=}"
+            shift;;
+        --*)
+            handle_option "${1#--}"
+            shift;;
+        -?*)
+            if [ ${#1} = 2 ]; then
+                handle_option "${1#-}"
+            else
+                v="${1#??}"
+                x="${1%"$v"}"
+                handle_option "${x#-}" "$v"
+            fi
+            shift;;
+        *)
+            break;;
+    esac
+done
+
+$date "$@" "+%Y-%m-%dT%H:%M:%S%z" | sed -E 's/..$/:&/'
