@@ -1,0 +1,59 @@
+#!/bin/sh -ue
+#.help
+# fzc
+#
+# Run fzf; echo output and set tmux buffer.
+
+fatal() {
+    printf %s\\n "$(basename "$0") error: $2" >&2
+    exit "$1"
+}
+
+handle_option() {
+    case "$1" in
+        # handle known options
+        *)
+            # fatal 64 "unknown option: $1"
+            # for showargs, show unknown rather than error
+            if [ $# = 1 ]; then
+                printf %s\\n "option $1"
+            else
+                printf %s\\n "option $1 = $2"
+            fi
+            ;;
+    esac
+}
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --)
+            shift
+            break;;
+        --*=*)
+            x="${1#--}"
+            handle_option "${x%%=*}" "${x#*=}"
+            shift;;
+        --*)
+            handle_option "${1#--}"
+            shift;;
+        -?*)
+            if [ ${#1} = 2 ]; then
+                handle_option "${1#-}"
+            else
+                v="${1#??}"
+                x="${1%"$v"}"
+                handle_option "${x#-}" "$v"
+            fi
+            shift;;
+        *)
+            break;;
+    esac
+done
+
+
+if [ -z "${TMUX:-}" ]; then
+    fatal 64 'not inside tmux'
+fi
+results="$(fzf)" || exit $?
+printf %s\\n "$results"
+tmux set-buffer -- "$results"
