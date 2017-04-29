@@ -1,6 +1,6 @@
 #!/bin/sh -ue
 #.help
-# fzc
+# fzt
 #
 # Run fzf; echo output and set tmux buffer.
 
