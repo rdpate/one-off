@@ -3,23 +3,36 @@
 # fzt
 #
 # Run fzf; echo output and set tmux buffer.
+#
+# Options:
+# -cX --cd=X        cd X before fzt; prepend X/ to result
+#
+# Options for fzf:
+# -m  --multi       fzf --multi
 
 fatal() {
     printf %s\\n "$(basename "$0") error: $2" >&2
     exit "$1"
 }
 
+base_dir=
+fzf_multi=
 handle_option() {
     case "$1" in
-        # handle known options
+        c|cd)
+            [ $# = 2 ] || fatal 64 "missing value for option $1"
+            base_dir="$2"
+            ;;
+        m|multi)
+            [ $# = 1 ] || fatal 64 "unexpected value for option $1"
+            fzf_multi=--multi
+            ;;
+        no-multi)
+            [ $# = 1 ] || fatal 64 "unexpected value for option $1"
+            fzf_multi=
+            ;;
         *)
-            # fatal 64 "unknown option: $1"
-            # for showargs, show unknown rather than error
-            if [ $# = 1 ]; then
-                printf %s\\n "option $1"
-            else
-                printf %s\\n "option $1 = $2"
-            fi
+            fatal 64 "unknown option: $1"
             ;;
     esac
 }
@@ -54,6 +67,19 @@ done
 if [ -z "${TMUX:-}" ]; then
     fatal 64 'not inside tmux'
 fi
-results="$(fzf)" || exit $?
+if [ -n "$base_dir" ]; then
+    cd -- "$base_dir" || fatal 65 "change directory failure: $base_dir"
+fi
+results="$(fzf $fzf_multi)" || exit $?
+if [ -n "$base_dir" ]; then
+    if [ -z "$fzf_multi" ]; then
+        case "$base_dir" in
+            */) results="$base_dir$results" ;;
+            *)  results="$base_dir/$results" ;;
+        esac
+    else
+        fatal 70 TODO
+    fi
+fi
 printf %s\\n "$results"
 tmux set-buffer -- "$results"
