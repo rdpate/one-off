@@ -3,23 +3,36 @@
 
 out=/tmp/cronic.out.$$
 err=/tmp/cronic.err.$$
+max_lines=1000
 
 result=0
 "$@" >"$out" 2>"$err" || result=$?
 
 if [ $result -ne 0 -o -s "$err" ]; then
-    cat - "$err" <<EOF
+    out_lines="$(wc -l "$out")"
+    err_lines="$(wc -l "$err")"
+    cat - <<END
 Cronic detected failure or error output for command:
 $*
 
 Exit status: $result
 
-Error output:
-EOF
-    cat - "$out" <<EOF
-
-Standard output:
-EOF
+END
+    if [ $err_lines -gt $max_lines ]; then
+        printf %s\\n "Error output ($err_lines lines, truncated to $max_lines):"
+        head -n"$max_lines" "$err"
+    else
+        printf %s\\n "Error output ($err_lines lines):"
+        cat "$err"
+    fi
+    printf \\n
+    if [ $out_lines -gt $max_lines ]; then
+        printf %s\\n "Standard output ($out_lines lines, truncated to $max_lines):"
+        head -n"$max_lines" "$out"
+    else
+        printf %s\\n "Standard output ($out_lines lines):"
+        cat "$out"
+    fi
 fi
 
 rm -f "$out" "$err"
