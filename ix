@@ -1,60 +1,68 @@
 #!/bin/sh -ue
-# ix [options] [FILE]
+#.help
+# ix [FILE]
 #
-# Paste file or stdin to http://ix.io/.
-#
-# Put username/password into ~/.netrc, if desired.  View your pastes at http://ix.io/user/USER.
+# Paste file or stdin to http://ix.io/.  If desired, put username/password into ~/.netrc.  View your pastes at http://ix.io/user/USER.
 #
 # Options:
-#  -n --read=NUM                  paste will be deleted after NUM reads
-#  -i --id=ID                     replace ID, if you have permission
+# -iX --id=ID                   replace ID, if you have permission
+#     --reads=NUM               paste will be deleted after NUM reads
 #
 # Examples:
-#   ix hello.txt                  # paste file (name/ext will be set)
-#   echo Hello world. | ix        # read from STDIN (won't set name/ext)
-#   ix -n1 self-destruct.txt      # paste will be deleted after one read
-#   ix -iID hello.txt             # replace ID, if you have permission
+#   ix hello.txt                # paste file (name/ext will be set)
+#   echo 'Hello world.' | ix    # read from STDIN (won't set name/ext)
+#   ix -n1 self-destruct.txt    # paste will be deleted after one read
+#   ix -iID hello.txt           # replace ID, if you have permission
+#
+# Adapted from http://ix.io/client.
 
 fatal() {
-    printf %s\\n "$(basename "$0"): $2" >&2
+    printf %s\\n "$(basename "$0") error: $2" >&2
     exit "$1"
 }
+is_digits() {
+    local x; for x; do case "$x" in *[!0-9]*|'') return 1 ;; *) ;; esac done
+}
+is_integer() {
+    local x; for x; do case "$x" in -*) is_digits "${x#-}" || return 1 ;; *[!0-9]*|'') return 1 ;; *) ;; esac done
+}
 
-num=
+max_reads=
 id=
 handle_option() {
     case "$1" in
-        n|read) [ $# = 2 ] || fatal 64 '--read missing NUM'
-            num="$2" ;;
-        i|id) [ $# = 2 ] || fatal 64 '--id missing ID'
-            id="$2" ;;
+            #[ $# = 2 ] || fatal 64 "missing value for option $1"
+            #[ $# = 1 ] || fatal 64 "unexpected value for option $1"
+            #is_digits "$2" || fatal "expected (non-negative) integer for option $1"
+            #is_integer "$2" || fatal "expected integer for option $1"
+            #[ -n "$2" ] || fatal 64 "empty value for option $1"
+        i|id)
+            [ $# = 2 ] || fatal 64 "missing value for option $1"
+            [ -n "$2" ] || fatal 64 "empty value for option $1"
+            id="$2"
+            ;;
+        reads)
+            [ $# = 2 ] || fatal 64 "missing value for option $1"
+            is_digits "$2" || fatal 64 "expected (non-negative) integer for option $1"
+            max_reads="$2"
+            ;;
         *) fatal 64 "unknown option: $1" ;;
     esac
 }
 
 while [ $# -gt 0 ]; do
     case "$1" in
-        --)
-            shift
-            break;;
-        --*=*)
-            x="${1#--}"
-            handle_option "${x%%=*}" "${x#*=}"
-            shift;;
-        --*)
-            handle_option "${1#--}"
-            shift;;
+        --) shift; break ;;
+        --*=*) x="${1#--}"; handle_option "${x%%=*}" "${x#*=}"; shift ;;
+        --*) handle_option "${1#--}"; shift ;;
+        -?) handle_option "${1#-}"; shift ;;
         -?*)
-            if [ ${#1} = 2 ]; then
-                handle_option "${1#-}"
-            else
-                v="${1#??}"
-                x="${1%"$v"}"
-                handle_option "${x#-}" "$v"
-            fi
-            shift;;
-        *)
-            break;;
+            v="${1#??}"
+            x="${1%"$v"}"
+            handle_option "${x#-}" "$v"
+            shift
+            ;;
+        *) break ;;
     esac
 done
 
@@ -73,4 +81,8 @@ curl=curl
 if [ -f ~/.netrc ]; then
     curl='curl -n'
 fi
-exec $curl ${id:+-X PUT} ${num:+-F read:1="$num"} -F f:1="$filename" http://ix.io/"$id"
+exec $curl \
+    ${id:+-X PUT} \
+    ${max_reads:+-F read:1="$max_reads"} \
+    -F f:1="$filename" \
+    "http://ix.io/$id"
