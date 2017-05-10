@@ -1,0 +1,62 @@
+#!/bin/sh -ue
+#.help
+# public-ip-update LAST-IP-FILE URL
+#
+# Fetch current public IP from https://ifconfig.co/ip; if this fails, exit without error.  Compare against first line of file.  If different, fetch given URL (which should do some kind of update) and save in file.
+
+fatal() {
+    printf %s\\n "$(basename "$0") error: $2" >&2
+    exit "$1"
+}
+is_digits() {
+    local x; for x; do case "$x" in *[!0-9]*|'') return 1 ;; *) ;; esac done
+}
+is_integer() {
+    local x; for x; do case "$x" in -*) is_digits "${x#-}" || return 1 ;; *[!0-9]*|'') return 1 ;; *) ;; esac done
+}
+
+handle_option() {
+    case "$1" in
+        # add options here, with common checks:
+            #[ $# = 2 ] || fatal 64 "missing value for option $1"
+            #[ $# = 1 ] || fatal 64 "unexpected value for option $1"
+            #is_digits "$2" || fatal 64 "expected (non-negative) integer for option $1"
+            #is_integer "$2" || fatal 64 "expected integer for option $1"
+
+        # less commonly useful:
+            #[ -n "$2" ] || fatal 64 "empty value for option $1"
+            # $2 is only empty for "--long-option=" (equals with no following value)
+
+        *) fatal 64 "unknown option $1" ;;
+    esac
+}
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --) shift; break ;;
+        --*=*) x="${1#--}"; handle_option "${x%%=*}" "${x#*=}"; shift ;;
+        --*) handle_option "${1#--}"; shift ;;
+        -?) handle_option "${1#-}"; shift ;;
+        -?*)
+            v="${1#??}"
+            x="${1%"$v"}"
+            handle_option "${x#-}" "$v"
+            shift
+            ;;
+        *) break ;;
+    esac
+done
+
+
+if [ $# != 2 ]; then
+    fatal 64 'expected args: FILE URL'
+fi
+current="$(curl -s -S https://ifconfig.co/ip)" || fatal 0 'fail: https://ifconfig.co/ip'
+if [ -e "$1" ]; then
+    read -r last <"$1"
+    if [ x"$current" = x"$last" ]; then
+        exit 0
+    fi
+fi
+curl -s -S "$2"
+printf %s\\n "$current" >"$1"
