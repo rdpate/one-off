@@ -1,0 +1,101 @@
+#!/bin/sh -ue
+#.help
+# write-to FILE COMMAND..
+# write-to -iX FILE COMMAND..
+#
+# Run command with standard output redirected to FILE.
+#
+# Options:
+# -iX --in-progress=X           write to FILE.X, rename to FILE on success
+# -IN --in-progress-as=NAME     write to NAME, rename to FILE on success
+#     --no-keep                 remove in-progress file or FILE on failure
+
+fatal() {
+    printf %s\\n "$(basename "$0") error: $2" >&2
+    exit "$1"
+}
+
+in_progress=
+in_progress_as=false
+keep=true
+handle_option() {
+    case "$1" in
+        i|in-progress)
+            [ $# = 2 ] || fatal 64 'missing --in-progress value'
+            in_progress="$2"
+            in_progress_as=false
+            ;;
+        I|in-progress-as)
+            [ $# = 2 ] || fatal 64 'missing --in-progress-as value'
+            in_progress="$2"
+            in_progress_as=true
+            ;;
+        no-keep)
+            [ $# = 1 ] || fatal 64 'unexpected --no-keep value'
+            keep=false
+            ;;
+        *) fatal 64 "unknown option: $1" ;;
+    esac
+}
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --)
+            shift
+            break;;
+        --*=*)
+            x="${1#--}"
+            handle_option "${x%%=*}" "${x#*=}"
+            shift;;
+        --*)
+            handle_option "${1#--}"
+            shift;;
+        -?*)
+            if [ ${#1} = 2 ]; then
+                handle_option "${1#-}"
+            else
+                v="${1#??}"
+                x="${1%"$v"}"
+                handle_option "${x#-}" "$v"
+            fi
+            shift;;
+        *)
+            break;;
+    esac
+done
+
+if [ $# = 0 ]; then
+    fatal 64 'missing file and command arguments'
+elif [ $# = 1 ]; then
+    fatal 64 'missing command argument'
+fi
+
+output_file="$1"
+shift
+case "$output_file" in
+    -*) output_file="./$output_file" ;;
+esac
+
+if [ -n "$in_progress" ]; then
+    if ! $in_progress_as; then
+        in_progress="$output_file.$in_progress"
+    fi
+    rc=0
+    "$@" 1>"$in_progress" || rc=$?
+    if [ $rc = 0 ]; then
+        mv -f "$in_progress" "$output_file" || fatal 73 "failed to mv -f $in_progress $output_file"
+        # TODO: what to do if mv fails?
+    elif ! $keep; then
+        rm -f "$in_progress" || true
+    fi
+    exit $rc
+elif ! $keep; then
+    rc=0
+    "$@" 1>"$output_file" || rc=$?
+    if [ $rc != 0 ]; then
+        rm -f "$output_file" || true
+    fi
+    exit $rc
+else
+    exec "$@" 1>"$output_file"
+fi
