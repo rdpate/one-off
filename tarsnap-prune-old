@@ -9,7 +9,7 @@
 #     --keep-days=N     keep all archives less than N days old (default: 30)
 #
 # Tarsnap Options:
-#     --tarsnap=PATH    tarsnap command, default: tarsnap
+#     --tarsnap=PATH    tarsnap command (default: tarsnap)
 #     --keyfile=FILE    tarsnap --keyfile
 
 import datetime
