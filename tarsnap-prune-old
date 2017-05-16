@@ -1,0 +1,149 @@
+#!/usr/bin/env python3.6
+#.help
+# tarsnap-prune-old BASE
+#
+# Prune tarsnap archives matching BASE.YYYY-MM-DD_HH:NN:SS older than --keep-days and not the first archive in that month.
+#
+# Options:
+#     --dry-run         show modifications without performing them
+#     --keep-days=N     keep all archives less than N days old (default: 30)
+#
+# Tarsnap Options:
+#     --tarsnap=PATH    tarsnap command, default: tarsnap
+#     --keyfile=FILE    tarsnap --keyfile
+
+import datetime
+import os
+import subprocess
+import sys
+
+class CodeMessageExit(SystemExit):
+    def __init__(self, code, message, program=None):
+        SystemExit.__init__(self, code)
+        self.message = message
+        self.program = program
+class UsageError(CodeMessageExit):
+    def __init__(self, message, program=None):
+        CodeMessageExit.__init__(self, 64, message, program)
+
+def pop_opts(args):
+    """yield (name, value) options, then modify args in-place"""
+    for n, x in enumerate(args):
+        if x == "--":
+            del args[:n + 1]
+            break
+        elif x.startswith("-") and len(x) != 1:
+            if x.startswith("--"):
+                name, sep, value = x[2:].partition("=")
+                if not sep:
+                    value = None
+            else:
+                name, value = x[1], x[2:] or None
+            yield name, value
+        else:
+            del args[:n]
+            break
+    else:
+        del args[:]
+
+def list_archives(tarsnap, keyfile=None):
+    args = [tarsnap, "--list-archives"]
+    if keyfile is not None:
+        args.extend(["--keyfile", keyfile])
+    return subprocess.check_output(args).decode().splitlines()
+
+def run(args):
+    dry_run = False
+    keep_days = 30
+    tarsnap_command = "tarsnap"
+    keyfile = None
+    for name, value in pop_opts(args):
+        # if name == "option-requires-value":
+        #     if value is None:
+        #         raise UsageError("missing value for option " + name)
+        # elif name == "option-without-value":
+        #     if value is not None:
+        #         raise UsageError("unexpected value for option " + name)
+        # elif name == "digits-value":
+        #     if not value or not all(x in "0123456789" for x in value):
+        #         raise UsageError("expected (non-negative) integer for option " + name)
+        #     value = int(value)
+        # elif name == "integer-value":
+        #     try:
+        #         value = int(value or "")
+        #     except ValueError:
+        #         raise UsageError("expected integer for option " + name)
+        # elif name == "non-empty-value":
+        #     # value is only an empty string for "--long-option=" (equals with no following value)
+        #     if value == "":
+        #         raise UsageError("expected non-empty value for option " + name)
+        #     # value might be None! test (not value) above to exclude None too
+        if name == "dry-run":
+            dry_run = True
+        elif name == "keep-days":
+            if not value or not all(x in "0123456789" for x in value):
+                raise UsageError("expected (non-negative) integer for option " + name)
+            keep_days = int(value)
+        elif name == "tarsnap":
+            if value == "":
+                raise UsageError("expected non-empty value for option " + name)
+            tarsnap_command = value
+        elif name == "keyfile":
+            if value == "":
+                raise UsageError("expected non-empty value for option " + name)
+            keyfile = value
+        else:
+            raise UsageError("unknown option " + name)
+    if not args:
+        raise UsageError("expected archive BASE argument")
+    if len(args) > 1:
+        raise UsageError("unknown extra arguments")
+
+    now = datetime.datetime.utcnow()
+    prefix = args[0] + "."
+
+    to_remove = []
+    monthly = {}
+    # TODO: remove shortcut to not read all archives at once
+    for name in sorted(x for x in list_archives(tarsnap_command, keyfile) if x.startswith(prefix)):
+        try:
+            stamp = datetime.datetime.strptime(name[len(prefix):], "%Y-%m-%d_%H:%M:%S")
+        except ValueError:
+            continue
+        if (now - stamp).days < keep_days:
+            continue
+        month = (stamp.year, stamp.month)
+        month_first = monthly.get(month)
+        if month_first is None:
+            monthly[month] = name
+        else:
+            to_remove.append(name)
+    if not to_remove:
+        print("# nothing to prune")
+        return
+    command = [tarsnap_command, "-d"]
+    for x in to_remove:
+        command.extend(["-f", x])
+    if dry_run:
+        print(command[0], command[1], "\\")
+        for x in range(2, len(command), 2):
+            print(" ", command[x], command[x + 1], "\\")
+        print("  # end")
+    else:
+        # TODO: handle too many args and split command
+        subprocess.check_call(command)
+
+def main(args):
+    try:
+        return run(args)
+    except subprocess.CalledProcessError as e:
+        return e.returncode
+    except CodeMessageExit as e:
+        program = e.program
+        if program is None:
+            program = os.path.basename(sys.argv[0])
+        sys.stderr.write(f"{program} error: {e.message}\n")
+        return e.code
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
