@@ -51,7 +51,11 @@ done
 if [ $# != 2 ]; then
     fatal 64 'expected args: FILE URL'
 fi
-current="$(curl -s -S https://ifconfig.co/ip)" || fatal 0 'fail: https://ifconfig.co/ip'
+current="$(curl -s https://ifconfig.co/ip)" || {
+    # TODO: better way to handle this? (happens for me when openvpn gets stuck in a failure mode)
+    printf %s\\n 'failed retrieving https://ifconfig.co/ip'
+    exit 0
+}
 if [ -e "$1" ]; then
     read -r last <"$1"
     if [ x"$current" = x"$last" ]; then
