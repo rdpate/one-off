@@ -47,17 +47,19 @@ def pop_opts(args):
         del args[:]
 
 class Tarsnap:
-    def __init__(self, command="tarsnap", *, keyfile=None, verbose=True):
+    def __init__(self, command="tarsnap", *, keyfile=None, verbose=print):
         if command is None:
             command = "tarsnap"
         self.command = command
         self.keyfile = keyfile
-        self.verbose = True
+        self.verbose = verbose
     def list_archives(self, prefix=None):
         args = [self.command, "--list-archives"]
         if self.keyfile is not None:
             args.extend(["--keyfile", self.keyfile])
         # TODO: iterate output instead of slurp
+        if self.verbose:
+            self.verbose(*args)
         archives = subprocess.check_output(args).decode().splitlines()
         if prefix is None:
             yield from archives
@@ -65,27 +67,33 @@ class Tarsnap:
             for x in archives:
                 if x.startswith(prefix):
                     yield x
-    def _do_delete(self, archives):
+    def _do_delete(self, archives, dry_run):
         args = [self.command, "-d"]
         if self.keyfile is not None:
             args.extend(["--keyfile", self.keyfile])
+        if self.verbose:
+            self.verbose(*args)
+        if dry_run:
+            for x in archives:
+                dry_run("  -f", x)
+            return
         for x in archives:
             args.append("-f")
             args.append(x)
         subprocess.check_call(args)
         if self.verbose:
             for x in archives:
-                print("deleted", x)
-    def delete_archives(self, archives):
+                self.verbose("# deleted", x)
+    def delete_archives(self, archives, dry_run=False):
         rm = []
         for x in archives:
             rm.append(x)
             # TODO: remove magic number
             if len(rm) == 10:
-                self._do_delete(rm)
+                self._do_delete(rm, dry_run)
                 rm.clear()
         if rm:
-            self._do_delete(rm)
+            self._do_delete(rm, dry_run)
 
 def run(args):
     dry_run = False
@@ -157,16 +165,8 @@ def run(args):
 
     if not to_remove:
         print("# nothing to prune")
-        return
-    if dry_run:
-        print(tarsnap.command, "-d \\")
-        if tarsnap.keyfile is not None:
-            print("  --keyfile", tarsnap.keyfile, "\\")
-        for x in to_remove:
-            print("  -f", x, "\\")
-        print("  # end")
     else:
-        tarsnap.delete_archives(to_remove)
+        tarsnap.delete_archives(to_remove, print if dry_run else False)
 
 def main(args):
     try:
