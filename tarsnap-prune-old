@@ -68,7 +68,7 @@ class Tarsnap:
                 if x.startswith(prefix):
                     yield x
     def _do_delete(self, archives, dry_run):
-        args = [self.command, "-d"]
+        args = [self.command, "-d", "--keep-going"]
         if self.keyfile is not None:
             args.extend(["--keyfile", self.keyfile])
         if self.verbose:
