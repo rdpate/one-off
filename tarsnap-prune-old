@@ -5,12 +5,12 @@
 # Prune tarsnap archives matching BASE.YYYY-MM-DD_HH:NN:SS older than --keep-days and not the first archive in that month.
 #
 # Options:
-#     --dry-run         show modifications without performing them
-#     --keep-days=N     keep all archives less than N days old (default: 30)
+#     --dry-run             show deletions without executing
+#     --keep-days=N         keep all archives younger than N days (default: 30)
 #
 # Tarsnap Options:
-#     --tarsnap=PATH    tarsnap command (default: tarsnap)
-#     --keyfile=FILE    tarsnap --keyfile
+#     --tarsnap=TARSNAP     use TARSNAP instead of "tarsnap" command
+#     --keyfile=KEYFILE     tarsnap --keyfile
 
 import datetime
 import os

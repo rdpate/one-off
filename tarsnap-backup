@@ -5,11 +5,11 @@
 # Backup PATHs into tarsnap archive NAME.YYYY-MM-DD_HH:NN:SS (in UTC).
 #
 # Options:
-#     --dry-run             show tarsnap command without executing
+#     --dry-run             show create command without executing
 #     --quiet               no output on success
 #
 # Tarsnap Options:
-#     --tarsnap=TARSNAP     use TARSNAP instead of "tarsnap"
+#     --tarsnap=TARSNAP     use TARSNAP instead of "tarsnap" command
 #     --keyfile=KEYFILE     tarsnap --keyfile
 
 fatal() {
