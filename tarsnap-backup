@@ -109,4 +109,4 @@ set -- -f "$archive_name"
 if [ -n "$keyfile" ]; then
     set -- --keyfile "$keyfile" "$@"
 fi
-exec showargs "$tarsnap" -c "$@"
+exec "$tarsnap" -c "$@"
