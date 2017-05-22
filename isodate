@@ -1,12 +1,13 @@
 #!/bin/sh -ue
 #.help
-# isodate [--utc] [ARG..]
+# isodate [--utc] [-- DATE-OPTION..]
 #
-# Output date in an ISO 8601 format.  Defaults to local timezone.  Arguments are passed to date(1), eg. to change the reference point from "current time".
+# Output local timestamp in an ISO 8601 format.  Arguments are passed to date(1), eg. to change the reference point.
 #
 # Options:
 # -u  --utc         UTC time
 #     --local       local time
+#     --no-tz       don't include timezone in output
 # -sX --sep=X       use X instead of "_" to separate date and time
 
 fatal() {
@@ -16,6 +17,7 @@ fatal() {
 
 utc=
 sep=_
+tz=true
 handle_option() {
     case "$1" in
         u|utc)
@@ -29,6 +31,10 @@ handle_option() {
         s|sep)
             [ $# = 2 ] || fatal 64 "missing value for $2"
             sep="$2"
+            ;;
+        no-tz)
+            [ $# = 1 ] || fatal 64 "unexpected value for $2"
+            tz=false
             ;;
         *) fatal 64 "unknown option: $1" ;;
     esac
@@ -60,4 +66,9 @@ while [ $# -gt 0 ]; do
     esac
 done
 
-date $utc "$@" "+%Y-%m-%d$(printf %s "$sep" | sed -E 's/%/%%/g')%H:%M:%S%z" | sed -E 's/..$/:&/'
+sep="$(printf %s "$sep" | sed -E 's/%/%%/g')"
+if $tz; then
+    date $utc "$@" "+%Y-%m-%d$sep%H:%M:%S%z" | sed -E 's/..$/:&/'
+else
+    exec date $utc "$@" "+%Y-%m-%d$sep%H:%M:%S"
+fi
