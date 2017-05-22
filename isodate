@@ -7,27 +7,30 @@
 # Options:
 # -u  --utc         UTC time
 #     --local       local time
+# -sX --sep=X       use X instead of "_" to separate date and time
 
 fatal() {
     printf %s\\n "$(basename "$0") error: $2" >&2
     exit "$1"
 }
 
-date=date
+utc=
+sep=_
 handle_option() {
     case "$1" in
-        # handle known options
         u|utc)
-            [ $# = 1 ] || fatal 64 'unexpected value for --utc'
-            date='date -u'
+            [ $# = 1 ] || fatal 64 "unexpected value for $2"
+            utc=-u
             ;;
         local)
-            [ $# = 1 ] || fatal 64 'unexpected value for --local'
-            date=date
+            [ $# = 1 ] || fatal 64 "unexpected value for $2"
+            utc=
             ;;
-        *)
-            fatal 64 "unknown option: $1"
+        s|sep)
+            [ $# = 2 ] || fatal 64 "missing value for $2"
+            sep="$2"
             ;;
+        *) fatal 64 "unknown option: $1" ;;
     esac
 }
 
@@ -57,4 +60,4 @@ while [ $# -gt 0 ]; do
     esac
 done
 
-$date "$@" "+%Y-%m-%dT%H:%M:%S%z" | sed -E 's/..$/:&/'
+date $utc "$@" "+%Y-%m-%d$(printf %s "$sep" | sed -E 's/%/%%/g')%H:%M:%S%z" | sed -E 's/..$/:&/'
