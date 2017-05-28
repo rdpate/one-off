@@ -105,7 +105,7 @@ if $verbose || $dry_run; then
     fi
 fi
 
-set -- -f "$archive_name"
+set -- -f "$archive_name" "$@"
 if [ -n "$keyfile" ]; then
     set -- --keyfile "$keyfile" "$@"
 fi
