@@ -2,13 +2,16 @@
 #.help
 # isodate [--utc] [-- DATE-OPTION..]
 #
-# Output local timestamp in an ISO 8601 format.  Arguments are passed to date(1), eg. to change the reference point.
+# Output timestamp in an unambiguous format.  Arguments are passed to date(1), eg. to change the reference point.
 #
 # Options:
 # -u  --utc         UTC time
-#     --local       local time
+#     --local       local time (default)
 #     --no-tz       don't include timezone in output
 # -sX --sep=X       use X instead of "_" to separate date and time
+#
+# For ISO 8601 compatible output, use --sep=T.
+## TODO: rename program now that it's not ISO-compatible by default?
 
 fatal() {
     printf %s\\n "$(basename "$0") error: $2" >&2
