@@ -1,8 +1,8 @@
 #!/usr/bin/env python3.6
 #.help
-# tarsnap-prune-old BASE
+# tarsnap-prune-old BASE..
 #
-# Prune tarsnap archives matching BASE.YYYY-MM-DD_HH:NN:SS older than --keep-days and not the first archive in that month.
+# For each BASE, prune tarsnap archives matching BASE.YYYY-MM-DD_HH:NN:SS older than --keep-days and not the first archive in that month.
 #
 # Options:
 #     --dry-run             show deletions without executing
@@ -53,20 +53,14 @@ class Tarsnap:
         self.command = command
         self.keyfile = keyfile
         self.verbose = verbose
-    def list_archives(self, prefix=None):
+    def list_archives(self):
         args = [self.command, "--list-archives"]
         if self.keyfile is not None:
             args.extend(["--keyfile", self.keyfile])
-        # TODO: iterate output instead of slurp
         if self.verbose:
             self.verbose(*args)
-        archives = subprocess.check_output(args).decode().splitlines()
-        if prefix is None:
-            yield from archives
-        else:
-            for x in archives:
-                if x.startswith(prefix):
-                    yield x
+        # TODO: iterate output instead of slurp
+        return subprocess.check_output(args).decode().splitlines()
     def _do_delete(self, archives, dry_run):
         args = [self.command, "-d", "--keep-going"]
         if self.keyfile is not None:
@@ -140,16 +134,19 @@ def run(args):
     tarsnap = Tarsnap(tarsnap, keyfile=keyfile)
     if not args:
         raise UsageError("expected archive BASE argument")
-    if len(args) > 1:
-        raise UsageError("unknown extra arguments")
 
     now = datetime.datetime.utcnow()
-    prefix = args[0] + "."
+    prefixes = [x + "." for x in args]
 
     to_remove = []
-    monthly = {}
+    monthly_seen_by_prefix = {x: {} for x in prefixes}
     # TODO: remove shortcut to not read all archives at once
-    for name in sorted(tarsnap.list_archives(prefix)):
+    for name in sorted(tarsnap.list_archives()):
+        for prefix in prefixes:
+            if name.startswith(prefix):
+                break
+        else:
+            continue
         try:
             stamp = datetime.datetime.strptime(name[len(prefix):], "%Y-%m-%d_%H:%M:%S")
         except ValueError:
@@ -157,9 +154,9 @@ def run(args):
         if (now - stamp).days < keep_days:
             continue
         month = (stamp.year, stamp.month)
-        month_first = monthly.get(month)
-        if month_first is None:
-            monthly[month] = name
+        monthly_seen = monthly_seen_by_prefix[prefix]
+        if month not in monthly_seen:
+            monthly_seen[month] = name
         else:
             to_remove.append(name)
 
