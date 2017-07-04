@@ -3,7 +3,8 @@
 # cronic COMMAND..
 #
 # Options:
-#     --max-lines=N         truncate errors/output to N lines (default 1000)
+#     --max-lines=N             truncate errors/output to N lines (default 1000)
+#     --sleep-random-mins=M     sleep up to M minutes before command
 #
 # Based on Cronic v2 by Chuck Houpt <http://habilis.net/cronic/>.
 
@@ -18,9 +19,8 @@ is_integer() {
     local x; for x; do case "$x" in -*) is_digits "${x#-}" || return 1 ;; *[!0-9]*|'') return 1 ;; *) ;; esac done
 }
 
-out=/tmp/cronic.out.$$
-err=/tmp/cronic.err.$$
 max_lines=1000
+sleep_max=0
 handle_option() {
     case "$1" in
             #[ $# = 2 ] || fatal 64 "missing value for option $1"
@@ -34,12 +34,14 @@ handle_option() {
             is_digits "$2" || fatal 64 "expected (non-negative) integer for option $1"
             max_lines="$2"
             ;;
-        *)
-            fatal 64 "unknown option $1"
+        sleep-random-mins)
+            [ $# = 2 ] || fatal 64 "missing value for option $1"
+            is_digits "$2" || fatal 64 "expected (non-negative) integer for option $1"
+            sleep_max="$(($2 * 60))"
             ;;
+        *) fatal 64 "unknown option $1" ;;
     esac
 }
-
 while [ $# -gt 0 ]; do
     case "$1" in
         --) shift; break ;;
@@ -56,7 +58,20 @@ while [ $# -gt 0 ]; do
     esac
 done
 
+if [ $# = 0 ]; then
+    fatal 64 'missing COMMAND arguments'
+fi
 
+random() {
+    # return integer from [0, $1)
+    printf %s "$(($(hexdump -e'"%u"' -n4 /dev/urandom) * $1 / 4294967296))"
+}
+if [ 0 -lt "$sleep_max" ]; then
+    sleep "$(random "$sleep_max")"
+fi
+
+out="/tmp/cronic.$$.out"
+err="/tmp/cronic.$$.err"
 result=0
 "$@" >"$out" 2>"$err" || result=$?
 
@@ -77,12 +92,11 @@ END
         printf %s\\n "Error output ($err_lines lines):"
         cat "$err"
     fi
-    printf \\n
     if [ $out_lines -gt $max_lines ]; then
-        printf %s\\n "Standard output ($out_lines lines, truncated to $max_lines):"
+        printf \\n%s\\n "Standard output ($out_lines lines, truncated to $max_lines):"
         head -n"$max_lines" "$out"
     else
-        printf %s\\n "Standard output ($out_lines lines):"
+        printf \\n%s\\n "Standard output ($out_lines lines):"
         cat "$out"
     fi
 fi
