@@ -1,10 +1,12 @@
 #!/bin/sh -ue
 #.help
-# cronic COMMAND..
+# % COMMAND..
 #
 # Options:
 #     --max-lines=N             truncate errors/output to N lines (default 1000)
 #     --sleep-random-mins=M     sleep up to M minutes before command
+#
+# Uses temp files /tmp/cronic.PID.{out,err}.
 #
 # Based on Cronic v2 by Chuck Houpt <http://habilis.net/cronic/>.
 
