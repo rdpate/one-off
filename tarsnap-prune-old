@@ -95,26 +95,6 @@ def run(args):
     tarsnap = None
     keyfile = None
     for name, value in pop_opts(args):
-        # if name == "option-requires-value":
-        #     if value is None:
-        #         raise UsageError("missing value for option " + name)
-        # elif name == "option-without-value":
-        #     if value is not None:
-        #         raise UsageError("unexpected value for option " + name)
-        # elif name == "digits-value":
-        #     if not value or not all(x in "0123456789" for x in value):
-        #         raise UsageError("expected (non-negative) integer for option " + name)
-        #     value = int(value)
-        # elif name == "integer-value":
-        #     try:
-        #         value = int(value or "")
-        #     except ValueError:
-        #         raise UsageError("expected integer for option " + name)
-        # elif name == "non-empty-value":
-        #     # value is only an empty string for "--long-option=" (equals with no following value)
-        #     if value == "":
-        #         raise UsageError("expected non-empty value for option " + name)
-        #     # value might be None! test (not value) above to exclude None too
         if name == "dry-run":
             dry_run = True
         elif name == "keep-days":
