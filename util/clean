@@ -1,0 +1,3 @@
+#!/bin/sh -ue
+cd "$(dirname "$0")/.."
+rm exec-as || true
