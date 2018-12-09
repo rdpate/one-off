@@ -1,0 +1,4 @@
+#!/bin/sh -ue
+for x; do
+    ffmpeg -i "$x" -codec copy "${x%.*}.mp4"
+done
