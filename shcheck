@@ -1,0 +1,68 @@
+#!/bin/sh -ue
+#.help
+# % [FILE..]
+#
+# Run "shellcheck FILEs" (if given FILEs) or "ack -f --type=shell . | xargs shellcheck" through a pager.
+#
+# Options:
+# -eC --exclude=CODE[,CODE..]   shellcheck --exclude (cumulative)
+# -fF --format=FORMAT           shellcheck --format
+
+# selected exit codes from BSD man sysexits:
+    # 64  usage error   eg. wrong arguments or bad syntax
+    # 65  data error    incorrect user input data (not system data)
+    # 66  no input      user input file did not exist or was not readable
+    # 69  unavailable   service is unavailable or catch-all
+    # 70  internal software error
+    # 71  OS error
+    # 73  can't create  user output file cannot be created
+    # 74  IO error
+    # 75  temp failure  reattempt later
+    # 78  config error  something was unconfigured or misconfigured
+fatal() { rc="$1"; shift; printf %s\\n "${0##*/} error: $*" >&2; exit "$rc"; }
+nonfatal() { printf %s\\n "${0##*/}: $*" >&2; }
+
+exclude=
+format=
+handle_option() {
+    case "$1" in
+        # add options here, with common checks:
+            #[ $# = 2 ] || fatal 64 "missing value for option $1"
+            #[ $# = 1 ] || fatal 64 "unexpected value for option $1"
+            #[ -n "${2:-}" ] || fatal 64 "missing value for option $1"
+            #[ -n "$2" ] || fatal 64 "expected non-empty value for option $1"
+            # $2 is only empty for "--long-option=" (equals with no following value)
+        e|exclude)
+            [ $# = 2 ] || fatal 64 "missing value for option $1"
+            exclude="${exclude:+$exclude,}$2"
+            ;;
+        f|format)
+            [ $# = 2 ] || fatal 64 "missing value for option $1"
+            format="$2"
+            ;;
+        *) fatal 64 "unknown option $1" ;;
+        esac
+    }
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --) shift; break ;;
+        --*=*) x="${1#--}"; handle_option "${x%%=*}" "${x#*=}"; shift ;;
+        --*) handle_option "${1#--}"; shift ;;
+        -?) handle_option "${1#-}"; shift ;;
+        -?*)
+            v="${1#??}"
+            x="${1%"$v"}"
+            handle_option "${x#-}" "$v"
+            shift
+            ;;
+        *) break ;;
+        esac
+    done
+
+args=$#
+set -- ${format:+-f"$format"} ${exclude:+-e"$exclude"} "$@"
+if [ $args = 0 ]; then
+    ack -f --type=shell . | xargs shellcheck --color=always "$@"
+else
+    shellcheck --color=always "$@"
+    fi | less
