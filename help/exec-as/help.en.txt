@@ -1,0 +1,3 @@
+% ARG0 COMMAND..
+
+Run COMMAND with ARG0 as executable name.
