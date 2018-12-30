@@ -5,8 +5,8 @@
 # Write stdin to FILE, edit, write FILE to stdout.  If not given, FILE is generated and removed afterwards.
 #
 # Options:
-# -a  --append                append to an existing FILE
-# -f  --force                 overwrite an existing FILE
+# -a  --append                append input to FILE
+# -f  --force                 overwrite FILE
 
 # selected exit codes from BSD man sysexits:
     # 64  usage error   eg. wrong arguments or bad syntax
