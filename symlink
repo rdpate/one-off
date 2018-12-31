@@ -1,0 +1,57 @@
+#!/bin/sh -Cue
+#.help
+# % DEST SOURCE..
+#
+# Symlink DEST to SOURCE, similar to "ln -s SOURCE DEST".  With multiple SOURCEs, DEST must be a directory.
+#
+# If SOURCE is relative, then transform to an absolute path based on $PWD instead of creating a relative symlink.
+##
+##Options:
+##    --to=DEST               multiple SOURCEs to DEST
+
+# selected exit codes from BSD man sysexits:
+    # 64  usage error   eg. wrong arguments or bad syntax
+    # 65  data error    incorrect user input data (not system data)
+    # 66  no input      user input file did not exist or was not readable
+    # 69  unavailable   service is unavailable or catch-all
+    # 70  internal software error
+    # 71  OS error
+    # 73  can't create  user output file cannot be created
+    # 74  IO error
+    # 75  temp failure  reattempt later
+    # 78  config error  something was unconfigured or misconfigured
+fatal() { rc="$1"; shift; printf %s\\n "${0##*/} error: $*" >&2 || true; exit "$rc"; }
+
+handle_option() { fatal 64 "unknown option $1"; }
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --) shift; break ;;
+        --*=*) x="${1#--}"; handle_option "${x%%=*}" "${x#*=}"; shift ;;
+        --*) handle_option "${1#--}"; shift ;;
+        -?) handle_option "${1#-}"; shift ;;
+        -?*)
+            v="${1#??}"
+            x="${1%"$v"}"
+            handle_option "${x#-}" "$v"
+            shift
+            ;;
+        *) break ;;
+        esac
+    done
+
+case "$#" in
+    0) fatal 64 'missing DEST SOURCE arguments' ;;
+    1) fatal 64 'missing SOURCE argument' ;;
+    2) ;;
+    *) [ -d "$1" ] || fatal 64 "not a directory: $1" ;;
+    esac
+resolve() {
+    printf %s "$(readlink -f "$(dirname -- "$1")/$(basename -- "$1")")"
+    }
+dest="$1"
+shift
+for arg; do
+    arg="$(resolve "$arg")"
+    [ -e "$arg" ] || fatal 65 "missing: $arg"
+    ln -s "$(resolve "$arg")" "$dest"
+    done
