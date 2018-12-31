@@ -11,7 +11,7 @@ case "$1" in
 redo-ifchange "$1.c"
 dep=".$1.dep"
 cc -MD -MF "$dep" -O2 -o"$3" "$1.c"
-sed -r 's/^[^ ]+: //; s/ \\$//; s/^ +| +$//g; s/ +/\n/g; /^$/d' | \
-xargs redo-ifchange
-rm "$dep"
+sed -i -r 's/^[^ ]+: //; s/ \\$//; s/^ +| +$//g; s/ +/\n/g; /^$/d' "$dep"
+xargs redo-ifchange <"$dep"
+#rm "$dep"
 #strip "$3"
