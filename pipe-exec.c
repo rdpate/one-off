@@ -139,7 +139,7 @@ int main(int _, char **argv) {
     int fds[2] = {-1, -1};
     if (pipe(fds)) {
         perror("pipe");
-        return 70;
+        return 71;
         }
 
     if (start_fd) {

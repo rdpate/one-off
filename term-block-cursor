@@ -1,0 +1,38 @@
+#!/bin/sh -Cue
+#.help
+# %
+#
+# Set terminfo cnorm field to block cursor.
+
+fatal() { rc="$1"; shift; printf %s\\n "${0##*/} error: $*" >&2 || true; exit "$rc"; }
+handle_option() { fatal 64 "unknown option $1"; }
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --) shift; break ;;
+        --*=*) x="${1#--}"; handle_option "${x%%=*}" "${x#*=}"; shift ;;
+        --*) handle_option "${1#--}"; shift ;;
+        -?) handle_option "${1#-}"; shift ;;
+        -?*)
+            v="${1#??}"
+            x="${1%"$v"}"
+            handle_option "${x#-}" "$v"
+            shift
+            ;;
+        *) break ;;
+        esac
+    done
+[ $# = 0 ] || fatal 70 'unexpected arguments'
+
+file="$(tempfile).pid-$$"
+trap 'rm -f -- "$file"' exit
+printf %s\\n "file: $file"
+infocmp >"$file"
+printf 'old: '
+grep -o 'cnorm=[^, ]*' "$file" || true
+sed -i -r 's/cnorm=[^, ]+/cnorm=\\E[?25h\\E[?15;0;224c/' "$file"
+printf 'new: '
+grep -o 'cnorm=[^, ]*' "$file" || true
+tic "$file"
+if [ -t 1 ]; then
+    tput cnorm
+    fi
