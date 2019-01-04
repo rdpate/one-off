@@ -1,17 +1,22 @@
-#include <errno.h>
-#include <limits.h>
-#include <stdarg.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+// headers
+    #include <errno.h>
+    #include <limits.h>
+    #include <stdarg.h>
+    #include <stdbool.h>
+    #include <stdio.h>
+    #include <stdlib.h>
+    #include <string.h>
 
-#include <fcntl.h>
-#include <unistd.h>
-
-static char const *prog_name = "<unknown>";
+    #include <fcntl.h>
+    #include <unistd.h>
+static struct self {
+    char const *prog_name;
+    char const *var_name;
+    int start_fd;
+    bool blocking;
+    } self = {"<unknown>", "PIPE_FDS", 0, true};
 void fatal(int rc, char const *fmt, ...) {
-    fprintf(stderr, "%s error: ", prog_name);
+    fprintf(stderr, "%s error: ", self.prog_name);
     va_list args;
     va_start(args, fmt);
     vfprintf(stderr, fmt, args);
@@ -20,15 +25,13 @@ void fatal(int rc, char const *fmt, ...) {
     exit(rc);
     }
 void nonfatal(char const *fmt, ...) {
-    fprintf(stderr, "%s: ", prog_name);
+    fprintf(stderr, "%s: ", self.prog_name);
     va_list args;
     va_start(args, fmt);
     vfprintf(stderr, fmt, args);
     va_end(args);
     fputc('\n', stderr);
     }
-
-static char const *var_name = "PIPE_FDS";
 bool is_valid_var_name(char const *name) {
     if (!*name) return false;
     if ('0' <= *name && *name <= '9') return false;
@@ -41,8 +44,6 @@ bool is_valid_var_name(char const *name) {
         }
     return true;
     }
-
-static int start_fd = 0;
 bool to_int(int *dest, char const *s) {
     char const *end;
     errno = 0;
@@ -57,23 +58,25 @@ bool to_int(int *dest, char const *s) {
         }
     return false;
     }
-
 int handle_option(char const *name, char const *value) {
     if (!strcmp(name, "var")) {
         if (!is_valid_var_name(value)) {
-            fatal(64, "invalid env variable name: %s", value);
+            fatal(64, "invalid env variable name %s", value);
             }
-        var_name = value;
+        self.var_name = value;
         }
     else if (!strcmp(name, "start")) {
-        if (!to_int(&start_fd, value) || start_fd < 0) {
-            fatal(64, "invalid start fd: %s", value);
+        if (!to_int(&self.start_fd, value) || self.start_fd < 0) {
+            fatal(64, "invalid start fd %s", value);
             }
         }
-    else fatal(64, "unknown option: %s", name);
+    else if (!strcmp(name, "no-blocking")) {
+        if (value) fatal(64, "unexpected value for option %s", name);
+        self.blocking = false;
+        }
+    else fatal(64, "unknown option %s", name);
     return 0;
     }
-
 int parse_options(char **args, char ***rest) {
     // modifies argument for long options with values, though does reverse the modification afterwards
     // returns 0 or the first non-zero return from handle_option
@@ -125,11 +128,10 @@ int parse_options(char **args, char ***rest) {
         }
     return rc;
     }
-
 int main(int _, char **argv) {
     { // parse options
-        char const *x = strrchr((prog_name = argv[0]), '/');
-        if (x) prog_name = x + 1;
+        char const *x = strrchr((self.prog_name = argv[0]), '/');
+        if (x) self.prog_name = x + 1;
         char **rest = 0;
         int rc = parse_options(argv + 1, &rest);
         if (rc) return rc;
@@ -141,11 +143,17 @@ int main(int _, char **argv) {
         perror("pipe");
         return 71;
         }
+    if (!self.blocking) {
+        if (fcntl(fds[0], F_SETFL, O_NONBLOCK)) {
+            perror("fcntl");
+            return 71;
+            }
+        }
 
-    if (start_fd) {
+    if (self.start_fd) {
         int old_read = fds[0];
-        if (old_read < start_fd) {
-            fds[0] = fcntl(old_read, F_DUPFD, start_fd);
+        if (old_read < self.start_fd) {
+            fds[0] = fcntl(old_read, F_DUPFD, self.start_fd);
             if (fds[0] == -1) {
                 perror("fcntl");
                 return 69;
@@ -153,8 +161,8 @@ int main(int _, char **argv) {
             close(old_read);
             }
         int old_write = fds[1];
-        if (old_write < start_fd) {
-            fds[1] = fcntl(old_write, F_DUPFD, start_fd);
+        if (old_write < self.start_fd) {
+            fds[1] = fcntl(old_write, F_DUPFD, self.start_fd);
             if (fds[1] == -1) {
                 perror("fcntl");
                 return 69;
@@ -164,11 +172,11 @@ int main(int _, char **argv) {
         }
 
     if (fds[0] > 99999 || fds[1] > 99999) return 70;
-    int newlen = strlen(var_name) +  1 + 5 + 1 + 5 + 1;
+    int newlen = strlen(self.var_name) +  1 + 5 + 1 + 5 + 1;
     //                               '=' %d  ',' %d  '\0'
     char *var = malloc(newlen);
     if (!var) return 70;
-    sprintf(var, "%s=%d,%d", var_name, fds[0], fds[1]);
+    sprintf(var, "%s=%d,%d", self.var_name, fds[0], fds[1]);
     putenv(var);
 
     execvp(argv[0], argv);
