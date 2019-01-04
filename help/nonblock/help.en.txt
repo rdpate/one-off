@@ -1,0 +1,3 @@
+% N[,N].. [CMD]
+
+Set file descriptors N to non-blocking, then exec CMD.
