@@ -1,4 +1,5 @@
 *.o
+/block-readwrite
 /exec-as
 /nonblock
 /pipe

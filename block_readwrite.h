@@ -1,3 +1,6 @@
+#ifndef INCLUDE_GUARD_6cff8eb77848cf7a8030bdd9f431d0fa
+#define INCLUDE_GUARD_6cff8eb77848cf7a8030bdd9f431d0fa
+
 /* Summary
     In contrast to the difficulty of non-blocking operations on a blocking open-file (see https://cr.yp.to/unix/nonblock.html), the opposite is surprisingly easy -- doing blocking operations on a non-blocking open-file.
 
@@ -21,11 +24,11 @@ inline int block_poll_fd(int fd, int events) {
     }
 
 ssize_t block_read(int fd, void *buffer, size_t length);
-    // read length bytes or until read returns 0
-ssize_t block_read_some(int fd, void *buffer, size_t length);
     // one successful read of up to length bytes
 
 ssize_t block_write(int fd, void const *data, size_t length);
     // write length bytes or until write returns an error
 ssize_t block_write_some(int fd, void const *data, size_t length);
     // one successful write of up to length bytes
+
+#endif
