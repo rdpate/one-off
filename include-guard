@@ -22,6 +22,7 @@ fatal() { rc="$1"; shift; printf %s\\n "${0##*/} error: $*" >&2 || true; exit "$
 nonfatal() { printf %s\\n "${0##*/}: $*" >&2 || true; }
 
 prefix=INCLUDE_GUARD
+replace=false
 handle_option() {
     case "$1" in
         # add options here, with common checks:
@@ -33,6 +34,10 @@ handle_option() {
         prefix)
             [ -n "${2:-}" ] || fatal 64 "missing value for option $1"
             prefix="$2"
+            ;;
+        replace)
+            [ $# = 1 ] || fatal 64 "unexpected value for option $1"
+            replace=true
             ;;
         *) fatal 64 "unknown option $1" ;;
         esac
@@ -57,43 +62,46 @@ while [ $# -gt 0 ]; do
 random_str() {
     head -c16 /dev/urandom | md5sum -b | cut -d' ' -f1
     }
-
 has_guard() {
-    { exec <"$1"
+    {
         read -r first first_rest
         read -r second second_rest
-        }
+        } <"$1"
     [ x"$first" = x'#ifndef' ]
     [ x"$second" = x'#define' ]
     [ x"$first_rest" = x"$second_rest" ]
     [ x"$(tail -n1 -- "$1")" = x'#endif' ]
     }
-
-for arg; do
-    temp="$arg.tmp"
+preamble() {
     guard="${prefix}_$(random_str)"
-    { exec >"$temp"
-        printf %s\\n "#ifndef $guard" "#define $guard" ''
-        if [ -e "$arg" ]; then
-            if has_guard "$arg"; then
-                { exec <"$arg"
-                    read -r first
-                    read -r second
-                    while read -r line; do
-                        [ -n "$line" ] || continue
-                        printf %s\\n "$line"
-                        break
-                        done
-                    cat
-                    }
-            else
-                cat -- "$1"
-                printf %s\\n '' '#endif'
+    printf %s\\n "#ifndef $guard" "#define $guard" ''
+    }
+for arg; do
+    if ! $replace && [ -e "$arg" ] && has_guard "$arg"; then
+        nonfatal "skipping file with exsting guard: $arg"
+        continue
+        fi
+    temp="$arg.tmp"
+    exec >"$temp"
+    if [ -e "$arg" ]; then
+        exec <"$arg"
+        preamble
+        read -r first
+        read -r second
+        while read -r line; do
+            if [ -z "$line" ]; then
+                continue
                 fi
-        else
-            printf %s\\n '#endif'
-            fi
-        }
+            printf %s\\n "$line"
+            break
+            done
+        while read -r line; do
+            printf %s\\n "$line"
+            done
+    else
+        preamble
+        printf %s\\n '#endif'
+        fi
     cat -- "$temp" >|"$arg"
     rm "$temp"
     done
