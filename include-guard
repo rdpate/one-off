@@ -86,18 +86,23 @@ for arg; do
     if [ -e "$arg" ]; then
         exec <"$arg"
         preamble
-        read -r first
-        read -r second
-        while read -r line; do
-            if [ -z "$line" ]; then
-                continue
-                fi
-            printf %s\\n "$line"
-            break
-            done
-        while read -r line; do
-            printf %s\\n "$line"
-            done
+        if has_guard "$arg"; then
+            read -r first
+            read -r second
+            while IFS= read -r line; do
+                if [ -z "$line" ]; then
+                    continue
+                    fi
+                printf %s\\n "$line"
+                break
+                done
+            while IFS= read -r line; do
+                printf %s\\n "$line"
+                done
+        else
+            cat
+            printf %s\\n '' '#endif'
+            fi
     else
         preamble
         printf %s\\n '#endif'
