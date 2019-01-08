@@ -1,0 +1,40 @@
+#!/bin/sh -Cue
+# Tmux Project Window
+#.help
+# % PROJECT..
+#
+# Open new tmux window at each ~/projects/PROJECT.
+##
+##Options:
+##-xV --xyx=VALUE               option xyz uses VALUE
+
+fatal() { rc="$1"; shift; printf %s\\n "${0##*/} error: $*" >&2 || true; exit "$rc"; }
+nonfatal() { printf %s\\n "${0##*/}: $*" >&2 || true; }
+handle_option() { fatal 64 "unknown option $1"; }
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --) shift; break ;;
+        --*=*) x="${1#--}"; handle_option "${x%%=*}" "${x#*=}"; shift ;;
+        --*) handle_option "${1#--}"; shift ;;
+        -?) handle_option "${1#-}"; shift ;;
+        -?*)
+            v="${1#??}"
+            x="${1%"$v"}"
+            handle_option "${x#-}" "$v"
+            shift
+            ;;
+        *) break ;;
+        esac
+    done
+[ $# != 0 ] || fatal 64 'missing PROJECT argument'
+
+[ -n "$TMUX" ] || fatal 64 'must be run inside tmux'
+
+base=~/projects
+for dir; do
+    [ -d "$base/$dir" ] || fatal 65 "missing $base/$dir"
+    done
+for dir; do
+    tmux new-window -d -n "$dir" -c "$base/$dir" \
+        -P -F 'new-window:  #{session_name}:#{window_index}  "#{window_name}"'
+    done
