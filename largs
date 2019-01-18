@@ -1,0 +1,8 @@
+#!/bin/sh -Cue
+#.help
+# % [OPT..] [ARG..]
+#
+# "Line args".  Run "xargs -d\n OPT.. ARG..".
+##
+## "largs" is a better name than "Line ARGument Execute"!
+exec xargs -d\\n "$@"
