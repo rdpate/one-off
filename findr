@@ -1,0 +1,23 @@
+#!/bin/sh -Cue
+#.help
+# % [START [COND..]]
+#
+# Find non-hidden files; similar to "find START COND.." except ignores hidden files and files in hidden directories.  Unlike find(1), only one starting path may be specified.
+#
+# Also similar to "find ... | grep -v /\\.", except should be more efficient by pruning hidden directories.
+
+fatal() { rc="$1"; shift; printf %s\\n "${0##*/} error: $*" >&2 || true; exit "$rc"; }
+nonfatal() { printf %s\\n "${0##*/}: $*" >&2 || true; }
+
+case "$#" in
+    0) set -- . -true ;;
+    1) set -- "$1" -true ;;
+    esac
+
+case "$1" in
+    -*) set -- . "$@" ;;
+    esac
+
+src="$1"
+shift
+exec find "$src" ! -name . -name '.*' -prune -o '(' "$@" ')' -print
