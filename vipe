@@ -2,11 +2,11 @@
 #.help
 # % [FILE]
 #
-# Write stdin to FILE, edit, write FILE to stdout.  If not given, FILE is generated and removed afterwards.
+# Write stdin to FILE, edit, write FILE to stdout.  If not given, FILE is generated and removed afterwards.  If stdout is a terminal and FILE was given, contents are not written to stdout.
 #
 # Options:
 # -a  --append                append input to FILE
-# -f  --force                 overwrite FILE
+# -f  --force                 clobber FILE
 
 # selected exit codes from BSD man sysexits:
     # 64  usage error   eg. wrong arguments or bad syntax
@@ -37,7 +37,7 @@ handle_option() {
             ;;
         f|force)
             [ $# = 1 ] || fatal 64 "unexpected value for option $1"
-            mode=force
+            mode=clobber
             ;;
         *) fatal 64 "unknown option $1" ;;
         esac
@@ -63,8 +63,12 @@ case "$#" in
     0)
         file="$(mktemp --tmpdir vipe.XXXXXX)"
         trap 'rm "$file"' exit
+        keep_file=false
         ;;
-    1) file="$1" ;;
+    1)
+        file="$1"
+        keep_file=true
+        ;;
     *) fatal 64 'unexpected arguments' ;;
     esac
 case "$mode" in
@@ -73,7 +77,10 @@ case "$mode" in
         cat >|"$file"
         ;;
     append) cat >>"$file" ;;
-    force) cat >|"$file" ;;
+    clobber) cat >|"$file" ;;
     esac
+if [ -t 1 ] && $keep_file; then
+    exec "${VISUAL-${EDITOR-vim}}" "$file" <&2 >&2
+    fi
 "${VISUAL-${EDITOR-vim}}" "$file" <&2 >&2
 cat <"$file"
