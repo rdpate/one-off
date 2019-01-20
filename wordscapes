@@ -1,0 +1,25 @@
+#!/usr/bin/python3
+import itertools
+import sys
+
+dict_file = "/usr/share/dict/words"
+letters = sys.argv[1]
+
+letters = "".join(sorted(letters))
+combos = set()
+for l in range(3, len(letters) + 1):
+    for c in itertools.combinations(letters, l):
+        combos.add("".join(c))
+words = []
+with open(dict_file) as f:
+    for line in f:
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if len(line) < 3:
+            continue
+        if "".join(sorted(line)) in combos:
+            words.append(line)
+words.sort(key=lambda x: (len(x), x))
+for x in words:
+    print(x)
