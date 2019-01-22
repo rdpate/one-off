@@ -1,0 +1,63 @@
+#!/bin/sh -Cue
+#.help
+# % [QUERY]
+#
+# Search QUERY in web browser.
+
+fatal() { rc="$1"; shift; printf %s\\n "${0##*/} error: $*" >&2 || true; exit "$rc"; }
+
+handle_option() { fatal 64 "unknown option $1"; }
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --) shift; break ;;
+        --=*) fatal 64 'missing option name' ;;
+        --*=*)
+            x="${1#--}"
+            v="${x#*=}"
+            x="${x%%=*}"
+            case "$x" in
+                #*[ `~!@#$%^&*=\\|;'"?]*) fatal 64 'bad option name' ;;
+                :)
+                    shift
+                    x="$v"
+                    while [ -n "$x" ]; do
+                        v="${x%?}"
+                        set -- -"${x#"$v"}" "$@"
+                        x="$v"
+                        done
+                    ;;
+                :*) fatal 64 'bad option name' ;;
+                *)
+                    handle_option "$x" "$v"
+                    shift
+                    ;;
+                esac
+            ;;
+        --:*) fatal 64 'bad option name' ;;
+        --*) handle_option "${1#--}"; shift ;;
+        #-[ `~!@#$%^&*=\\|;'"?]*) fatal 64 'bad option name' ;;
+        -:*)
+            x="${1#??}"
+            shift
+            while [ -n "$x" ]; do
+                v="${x%?}"
+                set -- -"${x#"$v"}" "$@"
+                x="$v"
+                done
+            ;;
+        -?) handle_option "${1#-}"; shift ;;
+        -?*)
+            v="${1#??}"
+            x="${1%"$v"}"
+            handle_option "${x#-}" "$v"
+            shift
+            ;;
+        *) break ;;
+        esac
+    done
+case "$#" in
+    0) url='https://google.com/' ;;
+    1) url="https://google.com/search?q=$1" ;;
+    *) fatal 64 'unexpected extra arguments' ;;
+    esac
+exec w3m "$url"
