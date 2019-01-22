@@ -1,0 +1,67 @@
+#!/bin/sh -ue
+# % REV [MESSAGE]
+#
+# Merge REV into current, but discard any differences in REV.  If given, use MESSAGE as merge commit message.
+##
+##Options:
+##-xV --xyx=VALUE             option xyz uses VALUE
+
+# selected exit codes from BSD man sysexits:
+    # 64  usage error   eg. wrong arguments or bad syntax
+    # 65  data error    incorrect user input data (not system data)
+    # 66  no input      user input file did not exist or was not readable
+    # 69  unavailable   service is unavailable or catch-all
+    # 70  internal software error
+    # 71  OS error
+    # 73  can't create  user output file cannot be created
+    # 74  IO error
+    # 75  temp failure  reattempt later
+    # 78  config error  something was unconfigured or misconfigured
+fatal() { rc="$1"; shift; printf %s\\n "${0##*/} error: $*" >&2 || true; exit "$rc"; }
+nonfatal() { printf %s\\n "${0##*/}: $*" >&2 || true; }
+
+handle_option() { fatal 64 "unknown option $1"; }
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --) shift; break ;;
+        --*=*) x="${1#--}"; handle_option "${x%%=*}" "${x#*=}"; shift ;;
+        --*) handle_option "${1#--}"; shift ;;
+        -?) handle_option "${1#-}"; shift ;;
+        -?*)
+            v="${1#??}"
+            x="${1%"$v"}"
+            handle_option "${x#-}" "$v"
+            shift
+            ;;
+        *) break ;;
+        esac
+    done
+case "$#" in
+    0) fatal 64 'missing REV [MESSAGE] arguments' ;;
+    1) ;;
+    2) [ -n "$2" ] || fatal 64 'empty MESSAGE argument' ;;
+    *) fatal 64 'unexpected extra arguments' ;;
+    esac
+rev="$(hg identify --id -r"$1")" || fatal 65 "invalid REV: $1"
+rev_long="$1"
+[ x"$rev_long" = x"$rev" ] || rev_long="$1 ($rev)"
+
+id="$(hg identify --id)"
+case "$id" in
+    *+) fatal 65 'working directory is not clean' ;;
+    esac
+
+nonfatal "merge-discard $rev_long into current ($(hg identify))"
+if false; then
+    # see https://bz.mercurial-scm.org/show_bug.cgi?id=5973
+    hg debugsetparents "$id" "$rev"
+else
+    quiet=--quiet
+    hg merge $quiet --tool=:local -r"$rev"
+    hg revert $quiet --no-backup -r"$id" --all
+    fi
+hg commit ${2:+"-m$2"} || {
+    rc=$?
+    hg update -C -r"$id" || nonfatal "ignoring failed hg update -C -r$id"
+    fatal "$rc" 'failed hg commit'
+    }
