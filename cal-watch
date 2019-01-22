@@ -1,0 +1,21 @@
+#!/bin/sh -ue
+#.help
+# % [same as cal(1)]
+#
+# Clear, display a calender, sleep until tomorrow, and repeat.
+[ $# = 0 ] && set -- -3
+trap 'printf \\r' INT
+if which lsb_release >/dev/null 2>&1; then
+    sleep_tmrw() {
+        sleep $(( $(date -d'tomorrow 00:00:01' +%s) - $(date +%s) ))
+        }
+else
+    sleep_tmrw() {
+        sleep $(( $(date -v+1d -v0H -v0M -v1S +%s) - $(date +%s) ))
+        }
+    fi
+while :; do
+    clear
+    cal "$@"
+    sleep_tmrw || exit 0
+    done
