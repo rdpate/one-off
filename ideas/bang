@@ -69,7 +69,6 @@ def run_file(args):
         args[0] = str(path.parent / command)
     except (IOError, RuntimeError) as e:
         return e
-    print(args)
     try:
         os.execv(args[0], args)
     except OSError as e:
