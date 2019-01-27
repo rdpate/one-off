@@ -1,0 +1,74 @@
+#!/bin/sh -Cue
+#.help
+# % [DIR..]
+#
+# List "hidden"; runs `l -d -- "$1".[!.]*`.
+
+fatal() { rc="$1"; shift; printf %s\\n "${0##*/} error: $*" >&2 || true; exit "$rc"; }
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --) shift; break ;;
+        --=*) fatal 64 'missing option name' ;;
+        --*=*)
+            x="${1#--}"
+            v="${x#*=}"
+            x="${x%%=*}"
+            case "$x" in
+                :)
+                    shift
+                    x="$v"
+                    while [ -n "$x" ]; do
+                        v="${x%?}"
+                        set -- -"${x#"$v"}" "$@"
+                        x="$v"
+                        done
+                    ;;
+                :*) fatal 64 'bad option name' ;;
+                *)
+                    handle_option "$x" "$v"
+                    shift
+                    ;;
+                esac
+            ;;
+        --:*) fatal 64 'bad option name' ;;
+        --*) handle_option "${1#--}"; shift ;;
+        -:*)
+            x="${1#??}"
+            shift
+            while [ -n "$x" ]; do
+                v="${x%?}"
+                set -- -"${x#"$v"}" "$@"
+                x="$v"
+                done
+            ;;
+        -?) handle_option "${1#-}"; shift ;;
+        -?*)
+            v="${1#??}"
+            x="${1%"$v"}"
+            handle_option "${x#-}" "$v"
+            shift
+            ;;
+        *) break ;;
+        esac
+    done
+
+list() {
+    for x in .[!.]*; do
+        [ -e "$x" ] || return 0
+        l -d -- .[!.]*
+        break
+        done
+    }
+if [ $# = 0 ]; then
+    list
+elif [ $# = 1 ]; then
+    (cd "$1" && list)
+else
+    printf %s:\\n "$1"
+    while :; do
+        (cd "$1" && list)
+        shift
+        [ $# != 0 ] || break
+        printf \\n%s:\\n "$1"
+        done
+    fi
