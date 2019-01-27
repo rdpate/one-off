@@ -1,0 +1,2 @@
+#!/bin/sh -Cue
+exec hg archive -X'.hg*' -p. "$@"
