@@ -1,0 +1,7 @@
+#!/bin/sh -Cue
+#.help
+# % [CMD..]
+#
+# Redirect stderr to /dev/null and exec CMD.
+while [ $# -gt 0 ]; do case "$1" in --) shift; break ;; -) break ;; -*) printf %s\\n "${0##*/} error: unexpected option" >&2 || true; exit 64 ;; *) break ;; esac; done
+[ $# = 0 ] || exec "$@" 2>/dev/null
