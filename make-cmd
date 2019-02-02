@@ -5,9 +5,8 @@
 # Add symlinks to DEST (default /cmd) for all regular files (or symlinks to regular files) in $PATH.
 #
 # Options:
-# -pP --path=PATH             set paths to PATH
-#
-# % --path="$(printf %s: {/usr/local,/usr,}/{sbin,bin} | head -c-1)"
+# -pD --path=DIRS             set paths to DIRS
+# -6                          set paths to {/usr/local,/usr,}/{sbin,bin}
 
 # selected exit codes from BSD man sysexits
     # 64  usage error   eg. wrong arguments or bad syntax
@@ -29,6 +28,10 @@ handle_option() {
         p|path)
             [ -n "${2:-}" ] || fatal 64 "missing value for option $1"
             path="$2"
+            ;;
+        6)
+            [ $# = 1 ] || fatal 64 "unexpected value for option $1"
+            path=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
             ;;
         *) fatal 64 "unknown option $1" ;;
         esac
@@ -81,7 +84,6 @@ while [ $# -gt 0 ]; do
         *) break ;;
         esac
     done
-#[ $# = 0 ] || fatal 64 'unexpected arguments'
 case "$#" in
     0) set -- /cmd ;;
     1) ;;
@@ -119,7 +121,11 @@ while IFS= read -r src; do
         [ -f "$file" ] || continue
         b="${file##*/}"
         if [ -e "$dest/$b" ]; then
-            [ "$file" -ef "$dest/$b" ] || nonfatal "basename exists: $file"
+            if [ -L "$dest/$b" ] && [ ! "$file" -ef "$dest/$b" ]; then
+                # non-link files are assumed to intentionally shadow
+                # ignore if links to the same final dest
+                nonfatal "shadowed: $file"
+                fi
             continue
             fi
         ln -s -f "$file" "$dest/$b"
