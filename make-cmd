@@ -1,0 +1,127 @@
+#!/bin/sh -Cue
+#.help
+# % [DEST]
+#
+# Add symlinks to DEST (default /cmd) for all regular files (or symlinks to regular files) in $PATH.
+#
+# Options:
+# -pP --path=PATH             set paths to PATH
+#
+# % --path="$(printf %s: {/usr/local,/usr,}/{sbin,bin} | head -c-1)"
+
+# selected exit codes from BSD man sysexits
+    # 64  usage error   eg. wrong arguments or bad syntax
+    # 65  data error    incorrect user input data (not system data)
+    # 66  no input      user input file did not exist or was not readable
+    # 69  unavailable   service is unavailable or catch-all
+    # 70  internal software error
+    # 71  OS error
+    # 73  can't create  user output file cannot be created
+    # 74  IO error
+    # 75  temp failure  reattempt later
+    # 78  config error  something was unconfigured or misconfigured
+fatal() { rc="$1"; shift; printf %s\\n "${0##*/} error: $*" >&2 || true; exit "$rc"; }
+nonfatal() { printf %s\\n "${0##*/}: $*" >&2 || true; }
+
+path="$PATH"
+handle_option() {
+    case "$1" in
+        p|path)
+            [ -n "${2:-}" ] || fatal 64 "missing value for option $1"
+            path="$2"
+            ;;
+        *) fatal 64 "unknown option $1" ;;
+        esac
+    }
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --) shift; break ;;
+        --=*) fatal 64 'missing option name' ;;
+        --*=*)
+            x="${1#--}"
+            v="${x#*=}"
+            x="${x%%=*}"
+            case "$x" in
+                :?*|*[\ \`\~\!\@\#\$\%\^\&\*\\\|\;\'\"\?]*) fatal 64 'bad option name' ;;
+                :)
+                    shift
+                    x="$v"
+                    while [ -n "$x" ]; do
+                        v="${x%?}"
+                        set -- -"${x#"$v"}" "$@"
+                        x="$v"
+                        done
+                    ;;
+                *)
+                    handle_option "$x" "$v"
+                    shift
+                    ;;
+                esac
+            ;;
+        --:) shift ;;
+        --:*|--*[\ \`\~\!\@\#\$\%\^\&\*\\\|\;\'\"\?]*) fatal 64 'bad option name' ;;
+        --*) handle_option "${1#--}"; shift ;;
+        -*[\ \`\~\!\@\#\$\%\^\&\*\=\\\|\;\'\"\?]*) fatal 64 'bad option name' ;;
+        -:*)
+            x="${1#??}"
+            shift
+            while [ -n "$x" ]; do
+                v="${x%?}"
+                set -- -"${x#"$v"}" "$@"
+                x="$v"
+                done
+            ;;
+        -?) handle_option "${1#-}"; shift ;;
+        -?*)
+            v="${1#??}"
+            x="${1%"$v"}"
+            handle_option "${x#-}" "$v"
+            shift
+            ;;
+        *) break ;;
+        esac
+    done
+#[ $# = 0 ] || fatal 64 'unexpected arguments'
+case "$#" in
+    0) set -- /cmd ;;
+    1) ;;
+    *) fatal 64 'unexpected arguments' ;;
+    esac
+dest="$1"
+[ -n "$dest" ] || fatal 65 'empty destination'
+dest="$(printf %s "$dest" | sed -r 's,/+$,,')"
+[ -n "$dest" ] || fatal 65 'disallowed destination: /'
+
+[ -d "$dest" ] || fatal 65 "destination missing: $dest"
+printf %s "$path:" | tr : \\n |
+while IFS= read -r src; do
+    if [ -z "$src" ]; then
+        nonfatal 'skipping empty path entry'
+        continue
+        fi
+    if [ ! -e "$src" ]; then
+        nonfatal "skipping missing path entry: $src"
+        continue
+        fi
+    if [ ! -d "$src" ]; then
+        nonfatal "skipping non-directory path entry: $src"
+        continue
+        fi
+    case "$src" in
+        /*) ;;
+        *)
+            nonfatal 'skipping relative path entry'
+            continue
+            ;;
+        esac
+    #nonfatal "processing $src"
+    for file in "$(readlink -f -- "$src")"/*; do
+        [ -f "$file" ] || continue
+        b="${file##*/}"
+        if [ -e "$dest/$b" ]; then
+            [ "$file" -ef "$dest/$b" ] || nonfatal "basename exists: $file"
+            continue
+            fi
+        ln -s -f "$file" "$dest/$b"
+        done
+    done
