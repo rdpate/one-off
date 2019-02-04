@@ -1,0 +1,17 @@
+#!/bin/sh -Cue
+term_id="$(xdotool getwindowfocus)"
+printf %s 'select window...'
+target_id="$(xdotool selectwindow)"
+printf \\n
+key=Right
+
+random_sleep() { # MIN MAX
+    secs="$(awk -v"min=$1" -v"max=$2" 'BEGIN{srand(); print int(min+rand()*(max-min+1))}')"
+    sleep $secs
+    }
+for x in $(seq 150); do
+    case "$x" in *0) printf %s\\n "$x" ;; esac
+    xdotool windowfocus --sync "$target_id" key "$key"
+    xdotool windowfocus --sync "$term_id"
+    random_sleep 3 15
+    done
