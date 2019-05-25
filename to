@@ -1,0 +1,19 @@
+#!/bin/sh -Cue
+#.help
+# % ARG CMD..
+#
+# Reposition ARG to be the last argument and run CMD.
+#
+# Eg. "... | xargs to DEST cp".
+
+fatal() { rc="$1"; shift; printf %s\\n "${0##*/} error: $*" >&2 || true; exit "$rc"; }
+
+while [ $# -gt 0 ]; do case "$1" in --) shift; break ;; -) break ;; -*) fatal 64 'unexpected option' ;; *) break ;; esac; done
+case "$#" in
+    0) fatal 64 'missing ARG CMD.. arguments' ;;
+    1) fatal 64 'missing CMD.. argument' ;;
+    esac
+
+x="$1"
+shift
+exec "$@" "$x"
