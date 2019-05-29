@@ -5,8 +5,9 @@
 # Add symlinks to DEST (default /cmd) for all regular files (or symlinks to regular files) in $PATH.
 #
 # Options:
-# -pD --path=DIRS             set paths to DIRS
-# -6                          set paths to {/usr/local,/usr,}/{sbin,bin}
+#     --dryrun                print files that would be symlinked
+#     --path=DIRS             use DIRS instead of $PATH
+# -6                          --path with {/usr/local,/usr,}/{sbin,bin}
 
 # selected exit codes from BSD man sysexits
     # 64  usage error   eg. wrong arguments or bad syntax
@@ -22,10 +23,15 @@
 fatal() { rc="$1"; shift; printf %s\\n "${0##*/} error: $*" >&2 || true; exit "$rc"; }
 nonfatal() { printf %s\\n "${0##*/}: $*" >&2 || true; }
 
+dryrun=false
 path="$PATH"
 handle_option() {
     case "$1" in
-        p|path)
+        dryrun)
+            [ $# = 1 ] || fatal 64 "unexpected value for option $1"
+            dryrun=true
+            ;;
+        path)
             [ -n "${2:-}" ] || fatal 64 "missing value for option $1"
             path="$2"
             ;;
@@ -116,7 +122,6 @@ while IFS= read -r src; do
             continue
             ;;
         esac
-    #nonfatal "processing $src"
     for file in "$(readlink -f -- "$src")"/*; do
         [ -f "$file" ] || continue
         b="${file##*/}"
@@ -128,6 +133,10 @@ while IFS= read -r src; do
                 fi
             continue
             fi
-        ln -s -f "$file" "$dest/$b"
+        if $dryrun; then
+            printf %s\\n "$file"
+        else
+            ln -s -f "$file" "$dest/$b"
+            fi
         done
     done
