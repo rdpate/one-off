@@ -1,0 +1,91 @@
+#!/bin/sh -Cue
+#.help
+# %
+#
+# Move current window to a new or existing session.
+#
+# Options:
+# -sNAME                      session name
+
+fatal() { rc="$1"; shift; printf %s\\n "${0##*/} error: $*" >&2 || true; exit "$rc"; }
+nonfatal() { printf %s\\n "${0##*/}: $*" >&2 || true; }
+
+session=
+handle_option() {
+    case "$1" in
+        # add options here, with common checks:
+            #[ $# = 2 ] || fatal 64 "missing value for option $1"
+            #[ $# = 1 ] || fatal 64 "unexpected value for option $1"
+            #[ -n "${2:-}" ] || fatal 64 "missing value for option $1"
+            #is_digits "$2" || fatal 64 "expected number for option $1"
+            #is_integer "$2" || fatal 64 "expected integer for option $1"
+        s)
+            [ $# = 2 ] || fatal 64 "missing value for option $1"
+            session="$2"
+            ;;
+        *) fatal 64 "unknown option $1" ;;
+        esac
+    }
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --) shift; break ;;
+        --=*) fatal 64 'missing option name' ;;
+        --*=*)
+            x="${1#--}"
+            v="${x#*=}"
+            x="${x%%=*}"
+            case "$x" in
+                :?*|*[\ \`\~\!\@\#\$\%\^\&\*\\\|\;\'\"\?]*) fatal 64 'bad option name' ;;
+                :)
+                    shift
+                    x="$v"
+                    while [ -n "$x" ]; do
+                        v="${x%?}"
+                        set -- -"${x#"$v"}" "$@"
+                        x="$v"
+                        done
+                    ;;
+                *)
+                    handle_option "$x" "$v"
+                    shift
+                    ;;
+                esac
+            ;;
+        --:) shift ;;
+        --:*|--*[\ \`\~\!\@\#\$\%\^\&\*\\\|\;\'\"\?]*) fatal 64 'bad option name' ;;
+        --*) handle_option "${1#--}"; shift ;;
+        -*[\ \`\~\!\@\#\$\%\^\&\*\=\\\|\;\'\"\?]*) fatal 64 'bad option name' ;;
+        -:*)
+            x="${1#??}"
+            shift
+            while [ -n "$x" ]; do
+                v="${x%?}"
+                set -- -"${x#"$v"}" "$@"
+                x="$v"
+                done
+            ;;
+        -?) handle_option "${1#-}"; shift ;;
+        -?*)
+            v="${1#??}"
+            x="${1%"$v"}"
+            handle_option "${x#-}" "$v"
+            shift
+            ;;
+        *) break ;;
+        esac
+    done
+[ $# = 0 ] || fatal 64 'unexpected arguments'
+
+[ -n "$TMUX_PANE" ] || fatal 64 'must be run inside tmux'
+window="$(tmux list-panes -F'#{window_id} #{window_height} #{window_width}' | head -n1)"
+width="${window##* }"; window="${window% *}"
+height="${window##* }"; window="${window% *}"
+if [ -n "$session" ]; then
+    found="$(tmux list-sessions -F'#{session_name}' | grep -F -x -- "$session" | head -n1)"
+    [ -n "$found" ] || tmux new-session -s"$session" -d -x"$width" -y"$height" 'sleep 1'
+    session="$session:"
+else
+    session="$(tmux new-session -P -d -x"$width" -y"$height" 'sleep 1')"
+    fi
+tmux switch-client -t"$session"
+exec tmux move-window -t"$session"
