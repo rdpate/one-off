@@ -2,12 +2,11 @@
 #.help
 # % [DEST]
 #
-# Add symlinks to DEST (default /cmd) for all regular files (or symlinks to regular files) in $PATH.
+# Add symlinks to DEST (default /cmd) for all regular files (or symlinks to regular files) in the six directories {/usr/local,/usr,}/{sbin,bin}.
 #
 # Options:
-#     --dryrun                print files that would be symlinked
-#     --path=DIRS             use DIRS instead of $PATH
-# -6                          --path with {/usr/local,/usr,}/{sbin,bin}
+#     --dry-run               print files that would be symlinked
+#     --path=DIRS             use source DIRS
 
 # selected exit codes from BSD man sysexits
     # 64  usage error   eg. wrong arguments or bad syntax
@@ -24,20 +23,16 @@ fatal() { rc="$1"; shift; printf %s\\n "${0##*/} error: $*" >&2 || true; exit "$
 nonfatal() { printf %s\\n "${0##*/}: $*" >&2 || true; }
 
 dryrun=false
-path="$PATH"
+path=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 handle_option() {
     case "$1" in
-        dryrun)
+        dry-run)
             [ $# = 1 ] || fatal 64 "unexpected value for option $1"
             dryrun=true
             ;;
         path)
             [ -n "${2:-}" ] || fatal 64 "missing value for option $1"
             path="$2"
-            ;;
-        6)
-            [ $# = 1 ] || fatal 64 "unexpected value for option $1"
-            path=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
             ;;
         *) fatal 64 "unknown option $1" ;;
         esac
