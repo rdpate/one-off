@@ -121,14 +121,13 @@ while IFS= read -r src; do
         [ -f "$file" ] || continue
         b="${file##*/}"
         if [ -e "$dest/$b" ]; then
-            if [ -L "$dest/$b" ] && [ ! "$file" -ef "$dest/$b" ]; then
-                # non-link files are assumed to intentionally shadow
+            if [ ! -L "$dest/$b" ] || [ "$file" -ef "$dest/$b" ]; then
+                # ignore non-link files: assumed to intentionally shadow
                 # ignore if links to the same final dest
-                nonfatal "shadowed: $file"
+                continue
                 fi
-            continue
-            fi
-        if $dryrun; then
+            nonfatal "$dest/$b: $(readlink "$dest/$b") shadows $file"
+        elif $dryrun; then
             printf %s\\n "$file"
         else
             ln -s -f "$file" "$dest/$b"
