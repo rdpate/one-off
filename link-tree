@@ -1,0 +1,119 @@
+#!/bin/sh -Cue
+#.help
+# % TARGET SOURCE..
+#
+# Link files from each SOURCE into TARGET, copying nested directory structure.
+#
+# Options:
+#     --dry-run               print actions without executing
+
+fatal() { rc="$1"; shift; printf %s\\n "${0##*/} error: $*" >&2 || true; exit "$rc"; }
+nonfatal() { printf %s\\n "${0##*/}: $*" >&2 || true; }
+
+dry_run=false
+handle_option() {
+    case "$1" in
+        dry-run)
+            [ $# = 1 ] || fatal 64 "unexpected value for option $1"
+            dry_run=true
+            ;;
+        *) fatal 64 "unknown option $1" ;;
+        esac
+    }
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --) shift; break ;;
+        --=*) fatal 64 'missing option name' ;;
+        --*=*)
+            x="${1#--}"
+            v="${x#*=}"
+            x="${x%%=*}"
+            case "$x" in
+                :?*|*[\ \`\~\!\@\#\$\%\^\&\*\\\|\;\'\"\?]*) fatal 64 'bad option name' ;;
+                :)
+                    shift
+                    x="$v"
+                    while [ -n "$x" ]; do
+                        v="${x%?}"
+                        set -- -"${x#"$v"}" "$@"
+                        x="$v"
+                        done
+                    ;;
+                *)
+                    handle_option "$x" "$v"
+                    shift
+                    ;;
+                esac
+            ;;
+        --:) shift ;;
+        --:*|--*[\ \`\~\!\@\#\$\%\^\&\*\\\|\;\'\"\?]*) fatal 64 'bad option name' ;;
+        --*) handle_option "${1#--}"; shift ;;
+        -*[\ \`\~\!\@\#\$\%\^\&\*\=\\\|\;\'\"\?]*) fatal 64 'bad option name' ;;
+        -:*)
+            x="${1#??}"
+            shift
+            while [ -n "$x" ]; do
+                v="${x%?}"
+                set -- -"${x#"$v"}" "$@"
+                x="$v"
+                done
+            ;;
+        -?) handle_option "${1#-}"; shift ;;
+        -?*)
+            v="${1#??}"
+            x="${1%"$v"}"
+            handle_option "${x#-}" "$v"
+            shift
+            ;;
+        *) break ;;
+        esac
+    done
+
+[ $# != 0 ] || fatal 64 'missing arguments'
+[ -e "$1" ] || fatal 64 "missing TARGET: $1"
+[ -d "$1" ] || fatal 64 "expected TARGET directory: $1"
+target="$1"
+shift
+
+if $dry_run; then
+    do_mkdir() printf %s\\n "mkdir $1"
+    do_symlink() printf %s\\n "ln -s $1   $2"
+else
+    do_mkdir() mkdir -- "$1"
+    do_symlink() ln -s -- "$1" "$2"
+    fi
+
+if [ / = "$target" ]; then
+    # walk only uses as "$target/..."
+    target=
+    fi
+walk() {
+    prefix="${1:+$1/}"
+    for source in "$2"/*; do
+        base="$(basename "$source")"
+        dest="$target/$prefix$base"
+        if [ ! -L "$source" -a -d "$source" ]; then
+            if [ -L "$dest" ]; then
+                fatal 73 "$dest already exists when walking $source"
+                fi
+            [ -d "$dest" ] || do_mkdir "$dest"
+            (walk "$prefix$base" "$source")
+        elif [ -L "$dest" ]; then
+            readlink="$(readlink -- "$dest")"
+            if [ x"$readlink" != x"$source" ]; then
+                fatal 73 "$dest already links to $readlink not $source"
+                fi
+        elif [ -e "$dest" ]; then
+            fatal 65 "exists: $dest"
+        else
+            do_symlink "$source" "$dest"
+            fi
+        done
+    }
+
+while [ $# != 0 ]; do
+    [ -e "$1" ] || fatal 64 "missing SOURCE: $1"
+    [ -d "$1" ] || fatal 64 "expected SOURCE directory: $1"
+    walk '' "$(readlink -f -- "$1")"
+    shift
+    done
