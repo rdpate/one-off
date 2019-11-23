@@ -1,0 +1,91 @@
+#!/bin/sh -Cue
+#.help
+# % [CMD..]
+#
+# Prompt confirmation and then exec CMD.  (Without CMD, exit 0.)
+#
+# Options:
+#     --no=EXIT               negative confirmation exits EXIT (default 1)
+# -pS --prompt=STRING         prompt STRING (default "Confirm?")
+
+fatal() { rc="$1"; shift; printf %s\\n "${0##*/} error: $*" >&2 || true; exit "$rc"; }
+nonfatal() { printf %s\\n "${0##*/}: $*" >&2 || true; }
+
+is_digits() { for x; do case "$x" in *[!0123456789]*|'') return 1 ;; esac; done; }
+
+neg_exit=1
+prompt='Confirm?'
+handle_option() {
+    case "$1" in
+        no)
+            is_digits "$2" || fatal 64 "expected number for option $1"
+            neg_exit="$2"
+            ;;
+        p|prompt)
+            [ -n "${2:-}" ] || fatal 64 "missing value for option $1"
+            prompt="$2"
+            ;;
+        *) fatal 64 "unknown option $1" ;;
+        esac
+    }
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --) shift; break ;;
+        --=*) fatal 64 'missing option name' ;;
+        --*=*)
+            x="${1#--}"
+            v="${x#*=}"
+            x="${x%%=*}"
+            case "$x" in
+                :?*|*[\ \`\~\!\@\#\$\%\^\&\*\\\|\;\'\"\?]*) fatal 64 'bad option name' ;;
+                :)
+                    shift
+                    x="$v"
+                    while [ -n "$x" ]; do
+                        v="${x%?}"
+                        set -- -"${x#"$v"}" "$@"
+                        x="$v"
+                        done
+                    ;;
+                *)
+                    handle_option "$x" "$v"
+                    shift
+                    ;;
+                esac
+            ;;
+        --:) shift ;;
+        --:*|--*[\ \`\~\!\@\#\$\%\^\&\*\\\|\;\'\"\?]*) fatal 64 'bad option name' ;;
+        --*) handle_option "${1#--}"; shift ;;
+        -[\ \`\~\!\@\#\$\%\^\&\*\=\\\|\;\'\"\?]*) fatal 64 'bad option name' ;;
+        -:*)
+            x="${1#??}"
+            shift
+            while [ -n "$x" ]; do
+                v="${x%?}"
+                set -- -"${x#"$v"}" "$@"
+                x="$v"
+                done
+            ;;
+        -?) handle_option "${1#-}"; shift ;;
+        -?*)
+            v="${1#??}"
+            x="${1%"$v"}"
+            handle_option "${x#-}" "$v"
+            shift
+            ;;
+        *) break ;;
+        esac
+    done
+
+while :; do
+    printf %s "$prompt [yes/no] "
+    read -r reply
+    case "$reply" in
+        [Nn]|[Nn][Oo]) exit $neg_exit ;;
+        [Yy]|[Yy][Ee][Ss])
+            [ $# != 0 ] || exit 0
+            exec "$@"
+            ;;
+        *) nonfatal 'response not recognized' ;;
+        esac
+    done
