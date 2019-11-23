@@ -8,17 +8,6 @@
 #     --dry-run               print files that would be symlinked
 #     --path=DIRS             use source DIRS
 
-# selected exit codes from BSD man sysexits
-    # 64  usage error   eg. wrong arguments or bad syntax
-    # 65  data error    incorrect user input data (not system data)
-    # 66  no input      user input file did not exist or was not readable
-    # 69  unavailable   service is unavailable or catch-all
-    # 70  internal software error
-    # 71  OS error
-    # 73  can't create  user output file cannot be created
-    # 74  IO error
-    # 75  temp failure  reattempt later
-    # 78  config error  something was unconfigured or misconfigured
 fatal() { rc="$1"; shift; printf %s\\n "${0##*/} error: $*" >&2 || true; exit "$rc"; }
 nonfatal() { printf %s\\n "${0##*/}: $*" >&2 || true; }
 
@@ -65,7 +54,7 @@ while [ $# -gt 0 ]; do
         --:) shift ;;
         --:*|--*[\ \`\~\!\@\#\$\%\^\&\*\\\|\;\'\"\?]*) fatal 64 'bad option name' ;;
         --*) handle_option "${1#--}"; shift ;;
-        -*[\ \`\~\!\@\#\$\%\^\&\*\=\\\|\;\'\"\?]*) fatal 64 'bad option name' ;;
+        -[\ \`\~\!\@\#\$\%\^\&\*\=\\\|\;\'\"\?]*) fatal 64 'bad option name' ;;
         -:*)
             x="${1#??}"
             shift
