@@ -1,0 +1,19 @@
+#!/bin/sh -Cue
+#.help
+# % read-from FILE COMMAND..
+#
+# Run command with standard input redirected from FILE.
+
+fatal() { rc="$1"; shift; printf %s\\n "${0##*/} error: $*" >&2 || true; exit "$rc"; }
+while [ $# -gt 0 ]; do case "$1" in --) shift; break ;; -) break ;; -*) fatal 64 'unexpected option' ;; *) break ;; esac; done
+
+if [ $# = 0 ]; then
+    fatal 64 'missing file and command arguments'
+elif [ $# = 1 ]; then
+    fatal 64 'missing command argument'
+    fi
+
+[ -e "$1" ] || fatal 66 "missing: $1"
+exec <"$1"
+shift
+exec "$@"
