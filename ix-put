@@ -1,4 +1,4 @@
-#!/bin/sh -ue
+#!/bin/sh -Cue
 #.help
 # % [FILE]
 #
@@ -7,12 +7,6 @@
 # Options:
 # -iX --id=ID                   replace ID, if you have permission
 #     --reads=NUM               paste will be deleted after NUM reads
-#
-# Examples:
-#   ix hello.txt                # paste file (name/ext will be set)
-#   echo 'Hello world.' | ix    # read from STDIN (won't set name/ext)
-#   ix -n1 self-destruct.txt    # paste will be deleted after one read
-#   ix -iID hello.txt           # replace ID, if you have permission
 #
 # Adapted from http://ix.io/client.
 
@@ -45,7 +39,7 @@ while [ $# -gt 0 ]; do
             v="${x#*=}"
             x="${x%%=*}"
             case "$x" in
-                #*[ `~!@#$%^&*=\\|;'"?]*) fatal 64 'bad option name' ;;
+                :?*|*[\ \`\~\!\@\#\$\%\^\&\*\\\|\;\'\"\?]*) fatal 64 'bad option name' ;;
                 :)
                     shift
                     x="$v"
@@ -55,16 +49,16 @@ while [ $# -gt 0 ]; do
                         x="$v"
                         done
                     ;;
-                :*) fatal 64 'bad option name' ;;
                 *)
                     handle_option "$x" "$v"
                     shift
                     ;;
                 esac
             ;;
-        --:*) fatal 64 'bad option name' ;;
+        --:) shift ;;
+        --:*|--*[\ \`\~\!\@\#\$\%\^\&\*\\\|\;\'\"\?]*) fatal 64 'bad option name' ;;
         --*) handle_option "${1#--}"; shift ;;
-        #-[ `~!@#$%^&*=\\|;'"?]*) fatal 64 'bad option name' ;;
+        -[\ \`\~\!\@\#\$\%\^\&\*\=\\\|\;\'\"\?]*) fatal 64 'bad option name' ;;
         -:*)
             x="${1#??}"
             shift
