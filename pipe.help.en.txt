@@ -8,12 +8,12 @@ Options:
     --var=NAME                  use NAME instead of PIPE_FDS
     --start=N                   move FDs to N or higher
 
-POSIX only requires shell redirection syntax work for file descriptors 0-9.  If you need to guarantee pipe-exec creates single-digit descriptors, then ensure two are available:
+POSIX only requires shell redirection syntax work for file descriptors 0-9.  If you need to guarantee single-digit descriptors, then ensure two are available:
 
-    pipe-exec 8<&- 9<&- CMD..
+    pipe 8<&- 9<&- CMD..
 
 Example:
-    $ pipe-exec --var=x --start=100 printenv x
+    $ pipe --var=x --start=100 printenv x
     100,101
-    $ pipe-exec 8<&- 9<&- printenv PIPE_FDS
+    $ pipe 8<&- 9<&- printenv PIPE_FDS
     3,4
