@@ -1,0 +1,33 @@
+#!/bin/sh -Cue
+# % [on|off]
+#
+# Use synclient to turn touchpad on, off, or toggle.
+
+fatal() { rc="$1"; shift; printf %s\\n "${0##*/} error: $*" >&2 || true; exit "$rc"; }
+nonfatal() { printf %s\\n "${0##*/}: $*" >&2 || true; }
+
+while [ $# -gt 0 ]; do case "$1" in --) shift; break ;; -) break ;; -*) fatal 64 'unexpected option' ;; *) break ;; esac; done
+case "$#" in
+    0)
+        case "$(synclient | grep '^ *TouchpadOff *=' | tr -d ' ')" in
+            TouchpadOff=0) set -- off ;;
+            TouchpadOff=1) set -- on ;;
+            *) fatal 70 'unexpected output from synclient' ;;
+            esac
+        ;;
+    1) ;;
+    *) fatal 64 'unexpected arguments' ;;
+    esac
+
+case "$1" in
+    off)
+        synclient TouchpadOff=1
+
+        # use xbanish instead
+            #xdotool mousemove 1365 767
+            # move up above taskbar
+            #xdotool mousemove_relative 0 -24
+        ;;
+    on) synclient TouchpadOff=0 ;;
+    *) fatal 64 'unknown argument' ;;
+esac
