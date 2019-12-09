@@ -1,3 +1,5 @@
 #!/bin/sh -ue
 cd "$(dirname "$0")/.."
-redo exec-as
+for x in *.link; do
+    printf %s\\n "${x%.link}"
+    done | xargs redo-ifchange
