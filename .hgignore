@@ -1,0 +1,8 @@
+syntax: glob
+*.o
+
+syntax: regexp
+^block-readwrite$
+^exec-as$
+^nonblock$
+^pipe$
